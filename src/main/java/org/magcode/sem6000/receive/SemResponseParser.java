@@ -28,6 +28,12 @@ public class SemResponseParser {
 				int voltage = message[8] & 0xFF;
 				return new MeasurementResponse(voltage);
 			}
+			// data day response
+			if (message[2] == (byte) 0x0a && message[3] == (byte) 0x00) {
+				byte[] data = new byte[48];
+				System.arraycopy(message, 4, data, 0, 48);
+				return new DataDayResponse(data);
+			}
 			// synctime response
 			if (message[2] == (byte) 0x01 && message[3] == (byte) 0x00) {
 				if (message[4] == (byte) 0x00) {
@@ -36,9 +42,9 @@ public class SemResponseParser {
 					return new SyncTimeResponse(false);
 				}
 			}
+			return new UnknownResponse();
 
 		}
-		return new UnknownResponse();
-
+		return new IncompleteResponse(message);
 	}
 }
