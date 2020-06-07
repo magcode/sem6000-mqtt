@@ -20,6 +20,8 @@ import tinyb.BluetoothException;
 import tinyb.BluetoothGattCharacteristic;
 import tinyb.BluetoothGattService;
 import tinyb.BluetoothManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Sem6000MQTT {
 	static boolean running = true;
@@ -28,6 +30,7 @@ public class Sem6000MQTT {
 	public static final String UUID_READ = "00001800-0000-1000-8000-00805f9b34fb";
 	private static BlockingQueue<Command> workQueue = null;
 	private static ExecutorService service = null;
+	private static Logger logger = LogManager.getLogger(Sem6000MQTT.class);
 
 	static void printDevice(BluetoothDevice device) {
 		System.out.print("Address = " + device.getAddress());
@@ -107,7 +110,7 @@ public class Sem6000MQTT {
 			System.err.println("Run with <device_address> argument");
 			System.exit(-1);
 		}
-
+		logger.info("Start with {}", args[0]);
 		BluetoothManager manager = BluetoothManager.getBluetoothManager();
 		boolean discoveryStarted = manager.startDiscovery();
 		BluetoothDevice sensor = getDevice(args[0]);
@@ -137,12 +140,12 @@ public class Sem6000MQTT {
 		service.submit(worker);
 
 		workQueue.put(new LoginCommand("0000"));
-		
-		workQueue.put(new SyncTimeCommand());
-		
+
+		// workQueue.put(new SyncTimeCommand());
+
 		workQueue.put(new DataDayCommand());
 		Thread.sleep(5000);
-		
+
 		workQueue.put(new MeasureCommand());
 		Thread.sleep(5000);
 
@@ -162,10 +165,6 @@ public class Sem6000MQTT {
 		sensor.disconnect();
 		System.exit(-1);
 	}
-
-
-
-
 
 	public static String byteArrayToHex(byte[] a) {
 		StringBuilder sb = new StringBuilder(a.length * 2);

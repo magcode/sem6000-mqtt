@@ -2,17 +2,18 @@ package org.magcode.sem6000.receive;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.magcode.sem6000.Sem6000MQTT;
 
 public class SemResponseParser {
 	private static Logger logger = LogManager.getLogger(SemResponseParser.class);
 
 	public static SemResponse parseMessage(byte[] message) {
-
+		logger.trace("Parsing {}", Sem6000MQTT.byteArrayToHex(message));
 		if (message[0] == (byte) 0x0f) {
 			int expectedLen = message[1] & 0xFF;
 			int actualLen = message.length;
 			logger.trace("expected: {} actual: {}", expectedLen, actualLen);
-			if (expectedLen > actualLen) {
+			if (!(actualLen - expectedLen - 4 == 0 || actualLen - expectedLen - 2 == 0)) {
 				return new IncompleteResponse(message);
 			}
 			// login response
@@ -25,8 +26,9 @@ public class SemResponseParser {
 			}
 			// measurement response
 			if (message[2] == (byte) 0x04 && message[3] == (byte) 0x00) {
-				int voltage = message[8] & 0xFF;
-				return new MeasurementResponse(voltage);
+				byte[] data = new byte[48];
+				System.arraycopy(message, 4, data, 0, 14);
+				return new MeasurementResponse(data);
 			}
 			// data day response
 			if (message[2] == (byte) 0x0a && message[3] == (byte) 0x00) {
