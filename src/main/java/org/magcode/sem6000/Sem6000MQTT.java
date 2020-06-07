@@ -11,6 +11,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.magcode.sem6000.queue.SemSendReceiveThread;
 import org.magcode.sem6000.send.LoginCommand;
 import org.magcode.sem6000.send.MeasureCommand;
+import org.magcode.sem6000.send.SyncTimeCommand;
 import org.magcode.sem6000.send.Command;
 
 import tinyb.BluetoothDevice;
@@ -19,7 +20,7 @@ import tinyb.BluetoothGattCharacteristic;
 import tinyb.BluetoothGattService;
 import tinyb.BluetoothManager;
 
-public class Sem6BleApp {
+public class Sem6000MQTT {
 	static boolean running = true;
 	public static final String UUID_NOTIFY = "0000fff4-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_WRITE = "0000fff3-0000-1000-8000-00805f9b34fb";
@@ -135,6 +136,8 @@ public class Sem6BleApp {
 		service.submit(worker);
 
 		workQueue.put(new LoginCommand("0000"));
+		
+		workQueue.put(new SyncTimeCommand());
 
 		workQueue.put(new MeasureCommand());
 		Thread.sleep(5000);
@@ -156,44 +159,9 @@ public class Sem6BleApp {
 		System.exit(-1);
 	}
 
-	public static byte[] hexStringToByteArray(String s) {
-		int len = s.length();
-		byte[] data = new byte[len / 2];
-		for (int i = 0; i < len; i += 2) {
-			data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
-		}
-		return data;
-	}
 
-	public static byte[] getMessage(String command, String payload) {
-		byte[] bcom = hexStringToByteArray(command);
-		byte[] bpay = hexStringToByteArray(payload);
-		byte[] bstart = hexStringToByteArray("0f");
-		byte[] bend = hexStringToByteArray("ffff");
-		Integer len = 1 + bpay.length + bcom.length;
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		try {
-			outputStream.write(bstart);
-			outputStream.write(len.byteValue());
-			outputStream.write(bcom);
-			outputStream.write(bpay);
-			outputStream.write((byte) 0x00);
-			outputStream.write(bend);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 
-		byte c[] = outputStream.toByteArray();
 
-		Integer checksum = 1;
-
-		for (int i = 2; i < len + 1; i++) {
-			checksum = checksum + c[i];
-		}
-		c[c.length - 3] = checksum.byteValue();
-		return c;
-
-	}
 
 	public static String byteArrayToHex(byte[] a) {
 		StringBuilder sb = new StringBuilder(a.length * 2);

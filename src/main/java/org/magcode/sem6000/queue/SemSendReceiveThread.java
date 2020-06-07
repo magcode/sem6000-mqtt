@@ -2,7 +2,7 @@ package org.magcode.sem6000.queue;
 
 import java.util.concurrent.BlockingQueue;
 
-import org.magcode.sem6000.Sem6BleApp;
+import org.magcode.sem6000.Sem6000MQTT;
 import org.magcode.sem6000.receive.SemResponse;
 import org.magcode.sem6000.receive.SemResponseParser;
 import org.magcode.sem6000.send.Command;
@@ -35,7 +35,7 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 				if (take) {
 					this.currentMessage = workQueue.take();
 					System.out.println("TOOK: "
-							+ Sem6BleApp.byteArrayToHex(this.currentMessage.getMessage()) + " left: "
+							+ Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()) + " left: "
 							+ workQueue.size());
 					this.writeChar.writeValue(this.currentMessage.getMessage());
 				}
@@ -49,13 +49,13 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 
 	@Override
 	public void run(byte[] arg0) {
-		System.out.println("Got notification: " + Sem6BleApp.byteArrayToHex(arg0));
+		System.out.println("Got notification: " + Sem6000MQTT.byteArrayToHex(arg0));
 		SemResponse resp = SemResponseParser.parseMessage(arg0);
 		System.out.println("Got response of type:" + resp.getType() + " " + resp.toString());
 		if (this.currentMessage != null && !this.currentMessage.isProcessed()) {
 			this.currentMessage.setResult(arg0);
 			this.currentMessage.setProcessed(true);
-			System.out.println("Processed: " + Sem6BleApp.byteArrayToHex(this.currentMessage.getMessage()));
+			System.out.println("Processed: " + Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
 		} else {
 
 		}

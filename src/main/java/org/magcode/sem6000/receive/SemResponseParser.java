@@ -18,6 +18,14 @@ public class SemResponseParser {
 				int voltage = message[8] & 0xFF;
 				return new MeasurementResponse(voltage);
 			}
+			// synctime response
+			if (message[2] == (byte) 0x01 && message[3] == (byte) 0x00) {
+				if (message[4] == (byte) 0x00) {
+					return new SyncTimeResponse(true);
+				} else {
+					return new SyncTimeResponse(false);
+				}
+			}
 
 		}
 		return new UnknownResponse();
