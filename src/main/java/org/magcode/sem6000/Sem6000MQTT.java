@@ -13,6 +13,7 @@ import org.magcode.sem6000.send.LoginCommand;
 import org.magcode.sem6000.send.MeasureCommand;
 import org.magcode.sem6000.send.SyncTimeCommand;
 import org.magcode.sem6000.send.Command;
+import org.magcode.sem6000.send.DataDayCommand;
 
 import tinyb.BluetoothDevice;
 import tinyb.BluetoothException;
@@ -138,7 +139,10 @@ public class Sem6000MQTT {
 		workQueue.put(new LoginCommand("0000"));
 		
 		workQueue.put(new SyncTimeCommand());
-
+		
+		workQueue.put(new DataDayCommand());
+		Thread.sleep(5000);
+		
 		workQueue.put(new MeasureCommand());
 		Thread.sleep(5000);
 
