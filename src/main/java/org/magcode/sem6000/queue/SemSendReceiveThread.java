@@ -5,6 +5,7 @@ import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.magcode.sem6000.NotificatioReceiver;
 import org.magcode.sem6000.Sem6000MQTT;
 import org.magcode.sem6000.receive.ResponseType;
 import org.magcode.sem6000.receive.SemResponse;
@@ -20,10 +21,14 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 	BluetoothGattCharacteristic writeChar;
 	private byte[] incompleteBuffer;
 	private static Logger logger = LogManager.getLogger(SemSendReceiveThread.class);
+	private NotificatioReceiver receiver;
 
-	public SemSendReceiveThread(BlockingQueue<Command> workQueue2, BluetoothGattCharacteristic writeChar) {
+	public SemSendReceiveThread(BlockingQueue<Command> workQueue2, BluetoothGattCharacteristic writeChar,
+			NotificatioReceiver receiver) {
+		logger.trace("Thread started");
 		this.workQueue = workQueue2;
 		this.writeChar = writeChar;
+		this.receiver = receiver;
 	}
 
 	@Override
@@ -50,6 +55,7 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 				break;
 			}
 		}
+		logger.trace("Terminated");
 	}
 
 	@Override
@@ -74,6 +80,9 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 			this.currentMessage.setResult(arg0);
 			this.currentMessage.setProcessed(true);
 			logger.debug("Processed command: {}", Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
+			if (receiver != null) {
+				receiver.receiveSem6000Response(resp);
+			}
 		} else {
 
 		}
