@@ -75,13 +75,13 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 			toparse = buff.array();
 		}
 
-		SemResponse resp = SemResponseParser.parseMessage(toparse);
+		SemResponse resp = SemResponseParser.parseMessage(toparse, this.id);
 		if (resp.getType() == ResponseType.incomplete) {
 			this.incompleteBuffer = toparse;
 			return;
 		}
 		this.incompleteBuffer = null;
-		logger.debug("Got message with content: {}", resp.toString());
+		logger.debug("[{}] Got message with content: {}", this.id, resp.toString());
 		if (this.currentMessage != null && !this.currentMessage.isProcessed()) {
 			this.currentMessage.setResult(arg0);
 			this.currentMessage.setProcessed(true);

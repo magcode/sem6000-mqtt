@@ -8,11 +8,24 @@ public class SyncTimeResponse extends SemResponse {
 		this.responseType = ResponseType.synctime;
 	}
 
+	public SyncTimeResponse(byte b, String id) {
+		if (b == (byte) 0x00) {
+			this.success = true;
+		} else {
+			this.success = false;
+		}
+		this.setId(id);
+	}
+
 	public boolean isSuccess() {
 		return success;
 	}
 
 	public String toString() {
-		return this.success ? "Synctime: success" : "Synctime: failure";
+		if (this.success) {
+			return "[" + this.getId() + "] Synctime: success";
+		} else {
+			return "[" + this.getId() + "] Synctime: failure";
+		}
 	}
 }

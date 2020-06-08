@@ -17,9 +17,9 @@ public class MqttClient {
 		manager.startDiscovery();
 		Thread.sleep(5000);
 
-		Connector sem1 = new Connector("2C:AB:33:01:17:04", "0000", true, new Receiver());
-		Connector sem2 = new Connector("18:62:E4:11:9A:C1", "0000", true, new Receiver());
-		
+		Connector sem1 = new Connector("2C:AB:33:01:17:04", "0000", "sem61", true, new Receiver());
+		Connector sem2 = new Connector("18:62:E4:11:9A:C1", "0000", "sem62", true, new Receiver());
+
 		Thread.sleep(60000);
 		sem1.stop();
 		sem2.stop();

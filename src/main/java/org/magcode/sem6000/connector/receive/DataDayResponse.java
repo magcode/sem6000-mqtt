@@ -11,7 +11,7 @@ public class DataDayResponse extends SemResponse {
 	private int enToday;
 	private static Logger logger = LogManager.getLogger(DataDayResponse.class);
 
-	public DataDayResponse(byte[] values) {
+	public DataDayResponse(byte[] values, String id) {
 		this.responseType = ResponseType.dataday;
 		LocalDateTime now = LocalDateTime.now();
 		int total = 0;
@@ -29,10 +29,11 @@ public class DataDayResponse extends SemResponse {
 		}
 		this.en24h = total;
 		this.enToday = today;
+		setId(id);
 	}
 
 	public String toString() {
-		return "Energy last 24h: " + en24h + " Wh, Energy today: " + enToday + " Wh";
+		return "[" + this.getId() + "] Energy last 24h: " + en24h + " Wh, Energy today: " + enToday + " Wh";
 	}
 
 	public int getLast24h() {

@@ -8,7 +8,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -39,20 +38,22 @@ public class Connector {
 	private ScheduledExecutorService scheduledExecService = null;
 	private BluetoothGattCharacteristic notifyChar;
 	BluetoothDevice sem6000;
+	private String id;
 
-	public Connector(String mac, String pin, boolean enableRegularUpdates, NotificatioReceiver receiver) {
+	public Connector(String mac, String pin, String id, boolean enableRegularUpdates, NotificatioReceiver receiver) {
 		try {
 			// BluetoothManager manager = BluetoothManager.getBluetoothManager();
 			// boolean discoveryStarted = manager.startDiscovery();
+			this.id = id;
 			sem6000 = getDevice(mac);
 			if (sem6000 != null) {
-				sem6000.enableConnectedNotifications(new BLEConnectedNotification());
+				sem6000.enableConnectedNotifications(new BLEConnectedNotification(this));
 				if (this.connect()) {
 					// wait for characteristics scan
 					LocalDateTime startTime = LocalDateTime.now();
 					while (LocalDateTime.now().isBefore(startTime.plusSeconds(30))) {
 						if (sem6000.getServicesResolved()) {
-							logger.debug("[{}] Got characteristics after {} ms", sem6000.getName(),
+							logger.debug("[{}] Got characteristics after {} ms", this.getId(),
 									ChronoUnit.MILLIS.between(startTime, LocalDateTime.now()));
 							break;
 						}
@@ -71,7 +72,7 @@ public class Connector {
 					workQueue = new LinkedBlockingQueue<Command>(10);
 					execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory());
 
-					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, mac);
+					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, this.getId());
 					notifyChar.enableValueNotifications(worker);
 
 					execService.submit(worker);
@@ -86,7 +87,7 @@ public class Connector {
 				}
 			}
 		} catch (InterruptedException e) {
-			logger.error("[{}] Could not connect to device.", sem6000.getName(), e);
+			logger.error("[{}] Could not connect to device.", this.getId(), e);
 		}
 	}
 
@@ -96,26 +97,26 @@ public class Connector {
 		scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10, TimeUnit.SECONDS);
 	}
 
-	public String getName() {
-		return sem6000.getName();
+	public String getId() {
+		return this.id;
 	}
 
 	private boolean connect() {
-		logger.debug("[{}] Trying to connect", sem6000.getName());
+		logger.debug("[{}] Trying to connect", this.getId());
 		try {
 			return sem6000.connect();
 		} catch (BluetoothException e) {
-			logger.error("[{}] Could not connect", sem6000.getName(), e);
+			logger.error("[{}] Could not connect", this.getId(), e);
 		}
 		return false;
 	}
 
 	private void disconnect() {
-		logger.debug("[{}] Trying to disconnect", sem6000.getName());
+		logger.debug("[{}] Trying to disconnect", this.getId());
 		try {
 			sem6000.disconnect();
 		} catch (BluetoothException e) {
-			logger.error("[{}] Could not connect", sem6000.getName(), e);
+			logger.error("[{}] Could not connect", this.getId(), e);
 		}
 	}
 
@@ -144,13 +145,13 @@ public class Connector {
 			if (this.execService != null) {
 				this.execService.shutdownNow();
 				if (!execService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
-					logger.info("Still waiting for termination ...");
+					logger.trace("Still waiting for termination ...");
 				}
 			}
 			if (this.scheduledExecService != null) {
 				this.scheduledExecService.shutdownNow();
 				if (!scheduledExecService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
-					logger.info("Still waiting for termination ...");
+					logger.trace("Still waiting for termination ...");
 				}
 			}
 		} catch (InterruptedException e) {
@@ -189,7 +190,7 @@ public class Connector {
 				return null;
 
 			for (BluetoothGattService service : bluetoothServices) {
-				logger.trace("[{}] Services exposed by device: {}", sem6000.getName(), service.getUUID());
+				logger.trace("[{}] Services exposed by device: {}", this.getId(), service.getUUID());
 				if (service.getUUID().equals(UUID))
 					tempService = service;
 			}
@@ -213,10 +214,19 @@ public class Connector {
 
 class BLEConnectedNotification implements BluetoothNotification<Boolean> {
 	private static Logger logger = LogManager.getLogger(Connector.class);
+	private String id;
+
+	public BLEConnectedNotification(Connector connector) {
+		this.id = connector.getId();
+	}
 
 	@Override
-	public void run(Boolean arg0) {
-		logger.info(arg0 ? "Device says 'Connected'" : "Device says 'Disconnected'");
+	public void run(Boolean connected) {
+		if (connected) {
+			logger.info("[{}] Device says 'Connected'", this.id);
+		} else {
+			logger.info("[{}] Device says 'Disconnected'", this.id);
+		}
 	}
 }
 
