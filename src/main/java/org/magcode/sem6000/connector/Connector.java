@@ -69,9 +69,9 @@ public class Connector {
 					notifyChar = getCharacteristic(sensorService, UUID_NOTIFY);
 
 					workQueue = new LinkedBlockingQueue<Command>(10);
-					execService = Executors.newFixedThreadPool(1);
+					execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory());
 
-					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, this);
+					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, mac);
 					notifyChar.enableValueNotifications(worker);
 
 					execService.submit(worker);
@@ -91,11 +91,9 @@ public class Connector {
 	}
 
 	public void enableRegularUpdates() {
-		scheduledExecService = Executors.newScheduledThreadPool(1);
+		scheduledExecService = Executors.newScheduledThreadPool(1, new RequestMeasurementThreadFactory());
 		Runnable measurePublisher = new MeasurePublisher(this);
-
-		ScheduledFuture<?> measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10,
-				TimeUnit.SECONDS);
+		scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10, TimeUnit.SECONDS);
 	}
 
 	public String getName() {
@@ -233,5 +231,17 @@ class MeasurePublisher implements Runnable {
 	public void run() {
 		connector.send(new MeasureCommand());
 		connector.send(new DataDayCommand());
+	}
+}
+
+class SendReceiveThreadFactory implements ThreadFactory {
+	public Thread newThread(Runnable r) {
+		return new Thread(r, "SendReceive");
+	}
+}
+
+class RequestMeasurementThreadFactory implements ThreadFactory {
+	public Thread newThread(Runnable r) {
+		return new Thread(r, "RequestMeasurement");
 	}
 }

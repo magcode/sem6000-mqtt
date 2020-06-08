@@ -22,14 +22,19 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 	private byte[] incompleteBuffer;
 	private static Logger logger = LogManager.getLogger(SendReceiveThread.class);
 	private NotificatioReceiver receiver;
+	private String id = "";
 
 	public SendReceiveThread(BlockingQueue<Command> workQueue, BluetoothGattCharacteristic writeChar,
-			NotificatioReceiver receiver, Connector connector) {
-		Thread.currentThread().setName("SR-" + connector.getName());
+			NotificatioReceiver receiver, String id) {
 		logger.trace("Thread started");
 		this.workQueue = workQueue;
 		this.writeChar = writeChar;
 		this.receiver = receiver;
+		this.id = id;
+	}
+
+	public String toString() {
+		return this.id;
 	}
 
 	@Override
