@@ -79,7 +79,7 @@ public class Connector {
 
 					Thread.sleep(500);
 					workQueue.put(new LoginCommand(pin));
-					Thread.sleep(500);
+					Thread.sleep(1000);
 					workQueue.put(new SyncTimeCommand());
 					if (enableRegularUpdates) {
 						this.enableRegularUpdates();
@@ -130,6 +130,20 @@ public class Connector {
 
 	public void stop() {
 		try {
+			if (this.scheduledExecService != null) {
+				this.scheduledExecService.shutdownNow();
+				if (!scheduledExecService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
+					logger.trace("Still waiting for termination ...");
+				}
+			}
+			
+			if (this.execService != null) {
+				this.execService.shutdownNow();
+				if (!execService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
+					logger.trace("Still waiting for termination ...");
+				}
+			}
+
 			if (notifyChar != null) {
 				notifyChar.disableValueNotifications();
 				Thread.sleep(500);
@@ -142,18 +156,7 @@ public class Connector {
 			}
 			// this.sem6000.remove();
 			// Thread.sleep(500);
-			if (this.execService != null) {
-				this.execService.shutdownNow();
-				if (!execService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
-					logger.trace("Still waiting for termination ...");
-				}
-			}
-			if (this.scheduledExecService != null) {
-				this.scheduledExecService.shutdownNow();
-				if (!scheduledExecService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
-					logger.trace("Still waiting for termination ...");
-				}
-			}
+
 		} catch (InterruptedException e) {
 			logger.error("Could not terminate.", e);
 		}
