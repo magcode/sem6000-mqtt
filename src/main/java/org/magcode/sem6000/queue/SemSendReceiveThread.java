@@ -40,8 +40,8 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 				}
 				if (take) {
 					this.currentMessage = workQueue.take();
-					System.out.println("TOOK: " + Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage())
-							+ " left: " + workQueue.size());
+					logger.debug("Took command from sending queue: {}. Items left: {}",
+							Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()), workQueue.size());
 					this.writeChar.writeValue(this.currentMessage.getMessage());
 				}
 				Thread.sleep(200);
@@ -69,11 +69,11 @@ public class SemSendReceiveThread implements Runnable, BluetoothNotification<byt
 			return;
 		}
 		this.incompleteBuffer = null;
-		logger.debug("Message type:" + resp.getType() + " " + resp.toString());
+		logger.debug("Got message with content: {}", resp.toString());
 		if (this.currentMessage != null && !this.currentMessage.isProcessed()) {
 			this.currentMessage.setResult(arg0);
 			this.currentMessage.setProcessed(true);
-			logger.debug("Processed: {}", Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
+			logger.debug("Processed command: {}", Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
 		} else {
 
 		}

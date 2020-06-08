@@ -12,7 +12,7 @@ public class SemResponseParser {
 		if (message[0] == (byte) 0x0f) {
 			int expectedLen = message[1] & 0xFF;
 			int actualLen = message.length;
-			logger.trace("expected: {} actual: {}", expectedLen, actualLen);
+			logger.trace("Lenght expected: {} actual: {}", expectedLen, actualLen);
 			if (!(actualLen - expectedLen - 4 == 0 || actualLen - expectedLen - 2 == 0)) {
 				return new IncompleteResponse(message);
 			}

@@ -138,11 +138,11 @@ public class Sem6000MQTT {
 		SemSendReceiveThread worker = new SemSendReceiveThread(workQueue, writeChar);
 		notifyChar.enableValueNotifications(worker);
 		service.submit(worker);
-
+		
 		workQueue.put(new LoginCommand("0000"));
-
-		// workQueue.put(new SyncTimeCommand());
-
+		workQueue.put(new SyncTimeCommand());
+		Thread.sleep(500);
+		
 		workQueue.put(new DataDayCommand());
 		Thread.sleep(5000);
 

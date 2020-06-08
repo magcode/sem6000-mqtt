@@ -2,12 +2,12 @@
 <Configuration status="INFO" shutdownHook="disable">
 	<Appenders>
 		<Console name="Console" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{%c{1}} - %msg%n" />
 		</Console>
 		<RollingFile name="RollingFile" fileName="sem6000.log"
 			filePattern="sem6000-%d{yyyy-MM-dd}-%i.log">
 			<PatternLayout>
-				<pattern>%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</pattern>
+				<pattern>%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{%c{1}} - %msg%n</pattern>
 			</PatternLayout>
 			<Policies>
 				<SizeBasedTriggeringPolicy size="1 MB" />

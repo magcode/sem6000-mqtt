@@ -1,6 +1,7 @@
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
+import org.magcode.sem6000.receive.DataDayResponse;
 import org.magcode.sem6000.receive.MeasurementResponse;
 import org.magcode.sem6000.receive.ResponseType;
 import org.magcode.sem6000.receive.SemResponse;
@@ -22,9 +23,10 @@ public class ParseNotificationTest {
 		assertEquals(ResponseType.measure, semResponse.getType());
 		MeasurementResponse mRes = (MeasurementResponse) semResponse;
 		assertEquals(234, mRes.getVoltage());
-		assertEquals(11.464, mRes.getPower(),0.001f);
-		
+		assertEquals(11.464, mRes.getPower(), 0.001f);
+
 	}
+
 	@Test
 	public void testIncompleteDay1() {
 		String resp = "0f330a0000000000000000000000000000000000";
@@ -48,4 +50,15 @@ public class ParseNotificationTest {
 		SemResponse semResponse = SemResponseParser.parseMessage(Command.hexStringToByteArray(resp));
 		assertEquals(ResponseType.dataday, semResponse.getType());
 	}
+
+	@Test
+	public void dataDayTest() {
+		String resp = "0f330a0000000000000000000000000000000005000b000b000000000000000000000000000000000000000000000001000d00063affff";
+		SemResponse semResponse = SemResponseParser.parseMessage(Command.hexStringToByteArray(resp));
+		assertEquals(ResponseType.dataday, semResponse.getType());
+		DataDayResponse dataResp = (DataDayResponse) semResponse;
+		assertEquals(47, dataResp.getLast24h());
+		assertEquals(20, dataResp.getToday());
+	}
+
 }

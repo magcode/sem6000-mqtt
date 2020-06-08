@@ -15,6 +15,9 @@ public class SendMessageTest {
 		LocalDateTime formatDateTime = LocalDateTime.parse("2020-06-07 10:55:22", formatter);
 		SyncTimeCommand syncTimeCommand = new SyncTimeCommand(formatDateTime);
 		assertEquals("0f0c010016370a070607e4000051ffff", Sem6000MQTT.byteArrayToHex(syncTimeCommand.getMessage()));
+		formatDateTime = LocalDateTime.parse("2020-06-08 09:18:30", formatter);
+		syncTimeCommand = new SyncTimeCommand(formatDateTime);
+		assertEquals("0f0c01001e1209080607e4000034ffff", Sem6000MQTT.byteArrayToHex(syncTimeCommand.getMessage()));
 	}
 	@Test
 	public void testLogin() {

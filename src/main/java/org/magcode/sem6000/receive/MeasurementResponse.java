@@ -26,7 +26,7 @@ public class MeasurementResponse extends SemResponse {
 	}
 
 	public String toString() {
-		return "PowerOn: " + this.powerOn + " Voltage: " + this.voltage + " Power: " + this.power;
+		return "Measure PowerOn: " + this.powerOn + " Voltage: " + this.voltage + " Power: " + this.power;
 	}
 
 	public boolean isPowerOn() {
