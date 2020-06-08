@@ -1,4 +1,4 @@
-package org.magcode.sem6000.queue;
+package org.magcode.sem6000.connector;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.BlockingQueue;
@@ -7,23 +7,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.magcode.sem6000.NotificatioReceiver;
 import org.magcode.sem6000.Sem6000MQTT;
-import org.magcode.sem6000.receive.ResponseType;
-import org.magcode.sem6000.receive.SemResponse;
-import org.magcode.sem6000.receive.SemResponseParser;
-import org.magcode.sem6000.send.Command;
+import org.magcode.sem6000.connector.receive.ResponseType;
+import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connector.receive.SemResponseParser;
+import org.magcode.sem6000.connector.send.Command;
 
 import tinyb.BluetoothGattCharacteristic;
 import tinyb.BluetoothNotification;
 
-public class SemSendReceiveThread implements Runnable, BluetoothNotification<byte[]> {
+public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]> {
 	private final BlockingQueue<Command> workQueue;
 	private Command currentMessage;
 	BluetoothGattCharacteristic writeChar;
 	private byte[] incompleteBuffer;
-	private static Logger logger = LogManager.getLogger(SemSendReceiveThread.class);
+	private static Logger logger = LogManager.getLogger(SendReceiveThread.class);
 	private NotificatioReceiver receiver;
 
-	public SemSendReceiveThread(BlockingQueue<Command> workQueue2, BluetoothGattCharacteristic writeChar,
+	public SendReceiveThread(BlockingQueue<Command> workQueue2, BluetoothGattCharacteristic writeChar,
 			NotificatioReceiver receiver) {
 		logger.trace("Thread started");
 		this.workQueue = workQueue2;

@@ -5,8 +5,8 @@ import java.time.format.DateTimeFormatter;
 
 import org.junit.Test;
 import org.magcode.sem6000.Sem6000MQTT;
-import org.magcode.sem6000.send.LoginCommand;
-import org.magcode.sem6000.send.SyncTimeCommand;
+import org.magcode.sem6000.connector.send.LoginCommand;
+import org.magcode.sem6000.connector.send.SyncTimeCommand;
 
 public class SendMessageTest {
 	@Test

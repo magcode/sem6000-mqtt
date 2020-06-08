@@ -1,12 +1,12 @@
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
-import org.magcode.sem6000.receive.DataDayResponse;
-import org.magcode.sem6000.receive.MeasurementResponse;
-import org.magcode.sem6000.receive.ResponseType;
-import org.magcode.sem6000.receive.SemResponse;
-import org.magcode.sem6000.receive.SemResponseParser;
-import org.magcode.sem6000.send.Command;
+import org.magcode.sem6000.connector.receive.DataDayResponse;
+import org.magcode.sem6000.connector.receive.MeasurementResponse;
+import org.magcode.sem6000.connector.receive.ResponseType;
+import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connector.receive.SemResponseParser;
+import org.magcode.sem6000.connector.send.Command;
 
 public class ParseNotificationTest {
 	@Test

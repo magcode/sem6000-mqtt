@@ -1,4 +1,4 @@
-package org.magcode.sem6000.receive;
+package org.magcode.sem6000.connector.receive;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;

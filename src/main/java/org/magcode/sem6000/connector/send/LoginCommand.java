@@ -1,4 +1,4 @@
-package org.magcode.sem6000.send;
+package org.magcode.sem6000.connector.send;
 
 public class LoginCommand extends Command {
 

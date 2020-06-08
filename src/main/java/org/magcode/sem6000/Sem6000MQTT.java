@@ -6,12 +6,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.magcode.sem6000.queue.SemSendReceiveThread;
-import org.magcode.sem6000.send.LoginCommand;
-import org.magcode.sem6000.send.MeasureCommand;
-import org.magcode.sem6000.send.SyncTimeCommand;
-import org.magcode.sem6000.send.Command;
-import org.magcode.sem6000.send.DataDayCommand;
+import org.magcode.sem6000.connector.SendReceiveThread;
+import org.magcode.sem6000.connector.send.Command;
+import org.magcode.sem6000.connector.send.DataDayCommand;
+import org.magcode.sem6000.connector.send.LoginCommand;
+import org.magcode.sem6000.connector.send.MeasureCommand;
+import org.magcode.sem6000.connector.send.SyncTimeCommand;
 
 import tinyb.BluetoothDevice;
 import tinyb.BluetoothException;
@@ -133,7 +133,7 @@ public class Sem6000MQTT {
 		BluetoothGattCharacteristic notifyChar = getCharacteristic(sensorService, UUID_NOTIFY);
 		workQueue = new LinkedBlockingQueue<Command>(10);
 		service = Executors.newFixedThreadPool(1);
-		SemSendReceiveThread worker = new SemSendReceiveThread(workQueue, writeChar, null);
+		SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, null);
 		notifyChar.enableValueNotifications(worker);
 		service.submit(worker);
 

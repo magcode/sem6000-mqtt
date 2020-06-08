@@ -2,8 +2,9 @@ package org.magcode.sem6000;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.receive.SemResponse;
-import org.magcode.sem6000.send.MeasureCommand;
+import org.magcode.sem6000.connector.Connector;
+import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connector.send.MeasureCommand;
 
 import tinyb.BluetoothManager;
 

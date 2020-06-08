@@ -1,4 +1,4 @@
-package org.magcode.sem6000.receive;
+package org.magcode.sem6000.connector.receive;
 
 public class LoginResponse extends SemResponse {
 	private boolean success;

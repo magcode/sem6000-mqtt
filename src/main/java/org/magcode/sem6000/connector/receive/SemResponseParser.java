@@ -1,4 +1,4 @@
-package org.magcode.sem6000.receive;
+package org.magcode.sem6000.connector.receive;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

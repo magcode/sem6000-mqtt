@@ -1,4 +1,4 @@
-package org.magcode.sem6000;
+package org.magcode.sem6000.connector;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.queue.SemSendReceiveThread;
-import org.magcode.sem6000.send.Command;
-import org.magcode.sem6000.send.LoginCommand;
-import org.magcode.sem6000.send.SyncTimeCommand;
+import org.magcode.sem6000.NotificatioReceiver;
+import org.magcode.sem6000.connector.send.Command;
+import org.magcode.sem6000.connector.send.LoginCommand;
+import org.magcode.sem6000.connector.send.SyncTimeCommand;
 
 import tinyb.BluetoothDevice;
 import tinyb.BluetoothGattCharacteristic;
@@ -64,7 +64,7 @@ public class Connector {
 				workQueue = new LinkedBlockingQueue<Command>(10);
 				service = Executors.newFixedThreadPool(1);
 
-				SemSendReceiveThread worker = new SemSendReceiveThread(workQueue, writeChar, receiver);
+				SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver);
 				notifyChar.enableValueNotifications(worker);
 
 				service.submit(worker);
