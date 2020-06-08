@@ -133,7 +133,7 @@ public class Sem6000MQTT {
 		BluetoothGattCharacteristic notifyChar = getCharacteristic(sensorService, UUID_NOTIFY);
 		workQueue = new LinkedBlockingQueue<Command>(10);
 		service = Executors.newFixedThreadPool(1);
-		SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, null);
+		SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, null,null);
 		notifyChar.enableValueNotifications(worker);
 		service.submit(worker);
 

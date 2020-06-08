@@ -23,10 +23,11 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 	private static Logger logger = LogManager.getLogger(SendReceiveThread.class);
 	private NotificatioReceiver receiver;
 
-	public SendReceiveThread(BlockingQueue<Command> workQueue2, BluetoothGattCharacteristic writeChar,
-			NotificatioReceiver receiver) {
+	public SendReceiveThread(BlockingQueue<Command> workQueue, BluetoothGattCharacteristic writeChar,
+			NotificatioReceiver receiver, Connector connector) {
+		Thread.currentThread().setName("SR-" + connector.getName());
 		logger.trace("Thread started");
-		this.workQueue = workQueue2;
+		this.workQueue = workQueue;
 		this.writeChar = writeChar;
 		this.receiver = receiver;
 	}
@@ -45,7 +46,7 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 				}
 				if (take) {
 					this.currentMessage = workQueue.take();
-					logger.debug("Took command from sending queue: {}. Items left: {}",
+					logger.trace("Took command from sending queue: {}. Items left: {}",
 							Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()), workQueue.size());
 					this.writeChar.writeValue(this.currentMessage.getMessage());
 				}
@@ -60,7 +61,7 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 
 	@Override
 	public synchronized void run(byte[] arg0) {
-		logger.debug("Got notification: {}", Sem6000MQTT.byteArrayToHex(arg0));
+		logger.trace("Got notification: {}", Sem6000MQTT.byteArrayToHex(arg0));
 		byte[] toparse = arg0;
 		if (this.incompleteBuffer != null) {
 			logger.trace("Found data in buffer: {}", Sem6000MQTT.byteArrayToHex(this.incompleteBuffer));
@@ -79,7 +80,7 @@ public class SendReceiveThread implements Runnable, BluetoothNotification<byte[]
 		if (this.currentMessage != null && !this.currentMessage.isProcessed()) {
 			this.currentMessage.setResult(arg0);
 			this.currentMessage.setProcessed(true);
-			logger.debug("Processed command: {}", Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
+			logger.trace("Processed command: {}", Sem6000MQTT.byteArrayToHex(this.currentMessage.getMessage()));
 			if (receiver != null) {
 				receiver.receiveSem6000Response(resp);
 			}
