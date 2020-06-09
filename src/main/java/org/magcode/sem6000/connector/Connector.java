@@ -82,7 +82,7 @@ public class Connector {
 					notifyChar = getCharacteristic(sensorService, UUID_NOTIFY);
 
 					workQueue = new LinkedBlockingQueue<Command>(10);
-					execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory());
+					execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
 
 					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, this.getId());
 					notifyChar.enableValueNotifications(worker);
@@ -103,7 +103,7 @@ public class Connector {
 	}
 
 	public void enableRegularUpdates() {
-		scheduledExecService = Executors.newScheduledThreadPool(1, new RequestMeasurementThreadFactory());
+		scheduledExecService = Executors.newScheduledThreadPool(1, new RequestMeasurementThreadFactory(this.getId()));
 		Runnable measurePublisher = new MeasurePublisher(this);
 		scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10, TimeUnit.SECONDS);
 	}
@@ -136,7 +136,7 @@ public class Connector {
 				sem6000.disconnect();
 			}
 		} catch (BluetoothException e) {
-			logger.error("[{}] Could not connect", this.getId(), e);
+			logger.error("[{}] Could not disconnect", this.getId(), e);
 		}
 	}
 
@@ -147,14 +147,14 @@ public class Connector {
 			try {
 				Thread.sleep(3000);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				//
 			}
 			this.init();
 		}
 	}
 
 	public void send(Command command) {
+		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
 		this.ensureConnection();
 		try {
 			workQueue.put(command);
@@ -268,9 +268,9 @@ class BLEConnectedNotification implements BluetoothNotification<Boolean> {
 	@Override
 	public void run(Boolean connected) {
 		if (connected) {
-			logger.info("[{}] Device says 'Connected'", this.id);
+			logger.info("[{}] Device reports 'Connected'", this.id);
 		} else {
-			logger.info("[{}] Device says 'Disconnected'", this.id);
+			logger.info("[{}] Device reports 'Disconnected'", this.id);
 		}
 	}
 }
@@ -290,13 +290,25 @@ class MeasurePublisher implements Runnable {
 }
 
 class SendReceiveThreadFactory implements ThreadFactory {
+	private String id;
+
+	public SendReceiveThreadFactory(String id) {
+		this.id = id;
+	}
+
 	public Thread newThread(Runnable r) {
-		return new Thread(r, "SendReceive");
+		return new Thread(r, "SendReceive-" + this.id);
 	}
 }
 
 class RequestMeasurementThreadFactory implements ThreadFactory {
+	private String id;
+
+	public RequestMeasurementThreadFactory(String id) {
+		this.id = id;
+	}
+
 	public Thread newThread(Runnable r) {
-		return new Thread(r, "RequestMeasurement");
+		return new Thread(r, "RequestMeasurement-" + this.id);
 	}
 }
