@@ -36,14 +36,27 @@ public class Connector {
 	private ExecutorService execService = null;
 	private ScheduledExecutorService scheduledExecService = null;
 	private BluetoothGattCharacteristic notifyChar;
-	BluetoothDevice sem6000;
+	private BluetoothDevice sem6000;
+	private String mac;
 	private String id;
+	private String pin;
+	private boolean enableRegularUpdates;
+	private NotificationReceiver receiver;
 
 	public Connector(String mac, String pin, String id, boolean enableRegularUpdates, NotificationReceiver receiver) {
+		this.mac = mac;
+		this.id = id;
+		this.pin = pin;
+		this.enableRegularUpdates = enableRegularUpdates;
+		this.receiver = receiver;
+		this.init();
+	}
+
+	private void init() {
 		try {
 			// BluetoothManager manager = BluetoothManager.getBluetoothManager();
 			// boolean discoveryStarted = manager.startDiscovery();
-			this.id = id;
+
 			sem6000 = getDevice(mac);
 			if (sem6000 != null) {
 				sem6000.enableConnectedNotifications(new BLEConnectedNotification(this));
@@ -127,7 +140,22 @@ public class Connector {
 		}
 	}
 
+	private synchronized void ensureConnection() {
+		if (sem6000 != null && !sem6000.getConnected()) {
+			logger.info("[{}] Not connected at the moment.", this.getId());
+			this.stop();
+			try {
+				Thread.sleep(3000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			this.init();
+		}
+	}
+
 	public void send(Command command) {
+		this.ensureConnection();
 		try {
 			workQueue.put(command);
 		} catch (InterruptedException e) {
@@ -136,6 +164,7 @@ public class Connector {
 	}
 
 	public void stop() {
+		logger.debug("[{}] Stopping ...", this.getId());
 		try {
 			if (this.scheduledExecService != null) {
 				this.scheduledExecService.shutdownNow();
@@ -143,6 +172,10 @@ public class Connector {
 					logger.trace("Still waiting for termination ...");
 				}
 			}
+		} catch (InterruptedException e) {
+			logger.warn("Could not terminate scheduledExecService.");
+		}
+		try {
 
 			if (this.execService != null) {
 				this.execService.shutdownNow();
@@ -150,7 +183,10 @@ public class Connector {
 					logger.trace("Still waiting for termination ...");
 				}
 			}
-
+		} catch (InterruptedException e) {
+			logger.warn("Could not terminate execService.");
+		}
+		try {
 			if (notifyChar != null) {
 				notifyChar.disableValueNotifications();
 				Thread.sleep(500);
@@ -159,14 +195,13 @@ public class Connector {
 			Thread.sleep(500);
 			if (this.sem6000 != null) {
 				this.sem6000.disableConnectedNotifications();
-				Thread.sleep(500);
+				Thread.sleep(2000);
 			}
-			// this.sem6000.remove();
-			// Thread.sleep(500);
-
 		} catch (InterruptedException e) {
-			logger.error("Could not terminate.", e);
+			logger.warn("Error during stopping.", e);
 		}
+		logger.debug("[{}] Stopped.", this.getId());
+
 	}
 
 	private BluetoothDevice getDevice(String address) throws InterruptedException {

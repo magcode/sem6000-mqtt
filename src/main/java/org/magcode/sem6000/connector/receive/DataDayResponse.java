@@ -33,7 +33,7 @@ public class DataDayResponse extends SemResponse {
 	}
 
 	public String toString() {
-		return "[" + this.getId() + "] Energy last 24h: " + en24h + " Wh, Energy today: " + enToday + " Wh";
+		return "[" + this.getId() + "] DataDay Energy last 24h: " + en24h + " Wh, Energy today: " + enToday + " Wh";
 	}
 
 	public int getLast24h() {
