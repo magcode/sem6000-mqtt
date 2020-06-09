@@ -2,13 +2,14 @@ package org.magcode.sem6000.connector.receive;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.Sem6000MQTT;
+import org.magcode.sem6000.Sem6000MqttClient;
+import org.magcode.sem6000.connector.ByteUtils;
 
 public class SemResponseParser {
 	private static Logger logger = LogManager.getLogger(SemResponseParser.class);
 
 	public static SemResponse parseMessage(byte[] message, String id) {
-		logger.trace("Parsing {}", Sem6000MQTT.byteArrayToHex(message));
+		logger.trace("Parsing {}", ByteUtils.byteArrayToHex(message));
 		if (message[0] == (byte) 0x0f) {
 			int expectedLen = message[1] & 0xFF;
 			int actualLen = message.length;

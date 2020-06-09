@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.NotificatioReceiver;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
 import org.magcode.sem6000.connector.send.LoginCommand;
@@ -40,7 +39,7 @@ public class Connector {
 	BluetoothDevice sem6000;
 	private String id;
 
-	public Connector(String mac, String pin, String id, boolean enableRegularUpdates, NotificatioReceiver receiver) {
+	public Connector(String mac, String pin, String id, boolean enableRegularUpdates, NotificationReceiver receiver) {
 		try {
 			// BluetoothManager manager = BluetoothManager.getBluetoothManager();
 			// boolean discoveryStarted = manager.startDiscovery();
@@ -74,7 +73,6 @@ public class Connector {
 
 					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, this.getId());
 					notifyChar.enableValueNotifications(worker);
-
 					execService.submit(worker);
 
 					Thread.sleep(500);
@@ -102,9 +100,16 @@ public class Connector {
 	}
 
 	private boolean connect() {
-		logger.debug("[{}] Trying to connect", this.getId());
 		try {
-			return sem6000.connect();
+			if (sem6000 != null && sem6000.getConnected()) {
+				logger.debug("[{}] Already connected", this.getId());
+				return true;
+			}
+
+			if (sem6000 != null && !sem6000.getConnected()) {
+				logger.debug("[{}] Trying to connect", this.getId());
+				return sem6000.connect();
+			}
 		} catch (BluetoothException e) {
 			logger.error("[{}] Could not connect", this.getId(), e);
 		}
@@ -112,9 +117,11 @@ public class Connector {
 	}
 
 	private void disconnect() {
-		logger.debug("[{}] Trying to disconnect", this.getId());
 		try {
-			sem6000.disconnect();
+			if (sem6000 != null && sem6000.getConnected()) {
+				logger.debug("[{}] Trying to disconnect", this.getId());
+				sem6000.disconnect();
+			}
 		} catch (BluetoothException e) {
 			logger.error("[{}] Could not connect", this.getId(), e);
 		}
@@ -136,7 +143,7 @@ public class Connector {
 					logger.trace("Still waiting for termination ...");
 				}
 			}
-			
+
 			if (this.execService != null) {
 				this.execService.shutdownNow();
 				if (!execService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
