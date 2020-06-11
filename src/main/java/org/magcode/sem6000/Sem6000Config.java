@@ -1,11 +1,12 @@
 package org.magcode.sem6000;
 
 import org.magcode.sem6000.connector.Connector;
+import org.magcode.sem6000.connectorv2.ConnectorV2;
 
 public class Sem6000Config {
 	private String mac;
 	private String pin;
-	private Connector connector;
+	private ConnectorV2 connector;
 	private String name;
 
 	public Sem6000Config(String mac, String pin, String name) {
@@ -30,11 +31,11 @@ public class Sem6000Config {
 		this.pin = pin;
 	}
 
-	public Connector getConnector() {
+	public ConnectorV2 getConnector() {
 		return connector;
 	}
 
-	public void setConnector(Connector connector) {
+	public void setConnector(ConnectorV2 connector) {
 		this.connector = connector;
 	}
 

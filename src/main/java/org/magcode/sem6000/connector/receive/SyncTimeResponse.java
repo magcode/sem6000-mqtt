@@ -3,12 +3,8 @@ package org.magcode.sem6000.connector.receive;
 public class SyncTimeResponse extends SemResponse {
 	private boolean success;
 
-	public SyncTimeResponse(boolean success) {
-		this.success = success;
-		this.responseType = ResponseType.synctime;
-	}
-
 	public SyncTimeResponse(byte b, String id) {
+		this.responseType = ResponseType.synctime;
 		if (b == (byte) 0x00) {
 			this.success = true;
 		} else {

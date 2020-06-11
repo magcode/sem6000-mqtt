@@ -20,6 +20,7 @@ import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connectorv2.ConnectorV2;
 
 import tinyb.BluetoothManager;
 
@@ -36,8 +37,8 @@ public class Sem6000MqttClient {
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
 
-		BluetoothManager manager = BluetoothManager.getBluetoothManager();
-		manager.startDiscovery();
+		//BluetoothManager manager = BluetoothManager.getBluetoothManager();
+		//manager.startDiscovery();
 		Thread.sleep(5000);
 		sems = new HashMap<String, Sem6000Config>();
 		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61");
@@ -48,7 +49,7 @@ public class Sem6000MqttClient {
 		startMQTTClient();
 		for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
 			Sem6000Config value = entry.getValue();
-			Connector sem = new Connector(value.getMac(), value.getPin(), value.getName(), true,
+			ConnectorV2 sem = new ConnectorV2(value.getMac(), value.getPin(), value.getName(), true,
 					new Receiver(mqttClient, rootTopic));
 			Thread.sleep(10000);
 			value.setConnector(sem);
@@ -62,7 +63,7 @@ public class Sem6000MqttClient {
 
 					for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
 						Sem6000Config value = entry.getValue();
-						Connector sem = value.getConnector();
+						ConnectorV2 sem = value.getConnector();
 						sem.stop();
 						try {
 							Thread.sleep(2000);
@@ -131,6 +132,10 @@ class Receiver implements NotificationReceiver {
 
 	@Override
 	public void receiveSem6000Response(SemResponse response) {
+		if (response==null || response.getType()==null)
+		{
+			logger.error("here");
+		}
 		switch (response.getType()) {
 		case measure: {
 			MeasurementResponse mr = (MeasurementResponse) response;

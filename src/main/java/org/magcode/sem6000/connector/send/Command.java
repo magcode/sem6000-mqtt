@@ -7,7 +7,7 @@ public abstract class Command {
 	private byte[] message;
 	private byte[] result;
 	private boolean processed = false;
-
+	private long sent;
 	public Command() {
 
 	}
@@ -81,5 +81,13 @@ public abstract class Command {
 			data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
 		}
 		return data;
+	}
+
+	public long getSent() {
+		return sent;
+	}
+
+	public void setSent(long sent) {
+		this.sent = sent;
 	}
 }

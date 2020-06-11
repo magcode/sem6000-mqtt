@@ -3,11 +3,6 @@ package org.magcode.sem6000.connector.receive;
 public class LoginResponse extends SemResponse {
 	private boolean success;
 
-	public LoginResponse(boolean success) {
-		this.success = success;
-		this.responseType = ResponseType.login;
-	}
-
 	public LoginResponse(byte b, String id) {
 		if (b == (byte) 0x00) {
 			this.success = true;
@@ -15,6 +10,7 @@ public class LoginResponse extends SemResponse {
 			this.success = false;
 		}
 		this.setId(id);
+		this.responseType = ResponseType.login;
 	}
 
 	public boolean isSuccess() {
