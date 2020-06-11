@@ -1,4 +1,4 @@
-package org.magcode.sem6000.connectorv2;
+package org.magcode.sem6000.connectorv3;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -18,21 +18,20 @@ import org.magcode.sem6000.connector.receive.SemResponseParser;
 import org.magcode.sem6000.connector.send.Command;
 import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
 
-public class SendReceiveThread extends AbstractPropertiesChangedHandler implements Runnable {
+public class SendReceiver implements Runnable {
 	private final BlockingQueue<Command> workQueue;
 	private Command currentMessage;
-	private String gattPath;
+
 	private BluetoothGattCharacteristic writeChar;
 	private byte[] incompleteBuffer;
-	private static Logger logger = LogManager.getLogger(SendReceiveThread.class);
+	private static Logger logger = LogManager.getLogger(SendReceiver.class);
 	private NotificationReceiver receiver;
 	private String id = "";
 
-	public SendReceiveThread(BlockingQueue<Command> workQueue, String gattPath, BluetoothGattCharacteristic writeChar,
+	public SendReceiver(BlockingQueue<Command> workQueue, BluetoothGattCharacteristic writeChar,
 			NotificationReceiver receiver, String id) {
 		logger.trace("Thread started");
 		this.workQueue = workQueue;
-		this.gattPath = gattPath;
 		this.writeChar = writeChar;
 		this.receiver = receiver;
 		this.id = id;
@@ -80,15 +79,14 @@ public class SendReceiveThread extends AbstractPropertiesChangedHandler implemen
 	}
 
 	private synchronized void handleData(byte[] data) {
-		logger.debug("[{}] Got notification: {}", this.id,ByteUtils.byteArrayToHex(data));
+		logger.debug("[{}] Got notification: {}", this.id, ByteUtils.byteArrayToHex(data));
 		byte[] toparse = data;
-		
-		
-		if (this.incompleteBuffer != null && this.incompleteBuffer.length>500) {
+
+		if (this.incompleteBuffer != null && this.incompleteBuffer.length > 500) {
 			logger.debug("[{}] Clearing buffer", this.id);
 			this.incompleteBuffer = null;
 		}
-		
+
 		if (this.incompleteBuffer != null) {
 			logger.trace("Found data in buffer: {}", ByteUtils.byteArrayToHex(this.incompleteBuffer));
 			ByteBuffer buff = ByteBuffer.allocate(this.incompleteBuffer.length + data.length);
@@ -115,24 +113,4 @@ public class SendReceiveThread extends AbstractPropertiesChangedHandler implemen
 		}
 	}
 
-	@Override
-	public void handle(PropertiesChanged props) {
-		if (props != null) {
-			if (props.getPath().equals(gattPath)) {
-				Map<String, Variant<?>> data = props.getPropertiesChanged();
-				if (data.containsKey("Value")) {
-					Variant<?> payload = data.get("Value");
-					Object valO = payload.getValue();
-					if (valO instanceof byte[]) {
-						byte[] xx = (byte[]) valO;
-						handleData(xx);
-						// System.err.println("data:" + ByteUtils.byteArrayToHex(xx));
-					} else {
-						System.err.println("is a " + valO.getClass().toString());
-					}
-				}
-			}
-		}
-
-	}
 }
