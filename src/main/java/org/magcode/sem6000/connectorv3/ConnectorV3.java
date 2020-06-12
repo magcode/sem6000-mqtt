@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
-import org.magcode.sem6.SignalHandler;
 import org.magcode.sem6000.connector.ByteUtils;
 import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.send.Command;
@@ -63,6 +62,15 @@ public class ConnectorV3 {
 			sem6000 = getDevice(mac);
 			if (sem6000 != null) {
 				if (this.connect()) {
+					for (int i = 0; i < 10; i++) {
+						boolean res = sem6000.isServicesResolved();
+						if (res) {
+							break;
+						}
+						logger.info("[{}] Services not yet resolved. Waiting ...", this.getId());
+						Thread.sleep(1000);
+					}
+					logger.info("[{}] Got the service", this.getId());
 					BluetoothGattService sensorService = getService(sem6000, UUID_SERVICE);
 					if (sensorService != null) {
 						BluetoothGattCharacteristic writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
@@ -72,8 +80,7 @@ public class ConnectorV3 {
 						workQueue = new LinkedBlockingQueue<Command>(10);
 						execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
 
-						SendReceiver worker = new SendReceiver(workQueue, writeChar, receiver,
-								this.getId());
+						Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
 						execService.submit(worker);
 						this.notifyCharPath = notifyChar.getDbusPath();
 
@@ -84,6 +91,8 @@ public class ConnectorV3 {
 						if (enableRegularUpdates) {
 							this.enableRegularUpdates();
 						}
+					} else {
+						logger.error("[{}] Could not get BluetoothGattService", this.getId());
 					}
 				}
 			}
@@ -105,7 +114,7 @@ public class ConnectorV3 {
 					new RequestMeasurementThreadFactory(this.getId()));
 		}
 		Runnable measurePublisher = new MeasurePublisher(this);
-		measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10, TimeUnit.SECONDS);
+		measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 20, TimeUnit.SECONDS);
 
 	}
 
@@ -180,13 +189,11 @@ public class ConnectorV3 {
 			logger.warn("Could not terminate execService.");
 		}
 		try {
-			this.disconnect();
-			manager.closeConnection();
+			this.disconnect();			
 		} catch (Exception e) {
 			logger.warn("Error during stopping.", e);
 		}
 		logger.debug("[{}] Stopped.", this.getId());
-
 	}
 
 	private BluetoothDevice getDevice(String address) throws InterruptedException {
@@ -223,6 +230,7 @@ public class ConnectorV3 {
 
 class MeasurePublisher implements Runnable {
 	private ConnectorV3 connector;
+	private static Logger logger = LogManager.getLogger(MeasurePublisher.class);
 
 	public MeasurePublisher(ConnectorV3 connector) {
 		this.connector = connector;
@@ -230,6 +238,7 @@ class MeasurePublisher implements Runnable {
 
 	@Override
 	public void run() {
+		logger.debug("Sending my commands...");
 		connector.send(new MeasureCommand());
 		connector.send(new DataDayCommand());
 	}

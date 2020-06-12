@@ -16,6 +16,8 @@ import com.github.hypfvieh.bluetooth.DeviceManager;
 public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	private DeviceManager manager;
 	private Map<String, ConnectorV3> sems = new HashMap<String, ConnectorV3>();
+	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
+
 	private NotificationReceiver receiver;
 
 	public ConnectionManager(NotificationReceiver receiver) {
@@ -37,6 +39,9 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 		ConnectorV3 connector = new ConnectorV3(this.manager, config.getMac(), config.getPin(), config.getName(), true,
 				this.receiver);
 		sems.put(config.getName(), connector);
+		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
+		gattDataReceivers.put(config.getName(), gattDataReceiver);
+
 	}
 
 	public void shutDown() {
@@ -54,7 +59,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	@Override
 	public void handle(PropertiesChanged props) {
 		if (props != null) {
-			Iterator<String> it = sems.keySet().iterator();
+			Iterator<String> it = gattDataReceivers.keySet().iterator();
 			while (it.hasNext()) {
 				String id = it.next();
 				ConnectorV3 connector = sems.get(id);
@@ -65,7 +70,8 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 						Object valO = payload.getValue();
 						if (valO instanceof byte[]) {
 							byte[] xx = (byte[]) valO;
-							// connector.(xx);
+							Receiver gattDataReceiver = gattDataReceivers.get(id);
+							gattDataReceiver.receive(xx);
 
 						} else {
 							System.err.println("is a " + valO.getClass().toString());
