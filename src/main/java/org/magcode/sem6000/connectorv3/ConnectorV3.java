@@ -41,17 +41,17 @@ public class ConnectorV3 {
 	private String id;
 	private String pin;
 	private String notifyCharPath = "undefined";
-	private boolean enableRegularUpdates;
+	private int updateSeconds;
 	private NotificationReceiver receiver;
 	private ScheduledFuture<?> measurePublisherFuture;
 	private DeviceManager manager;
 
-	public ConnectorV3(DeviceManager manager, String mac, String pin, String id, boolean enableRegularUpdates,
+	public ConnectorV3(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
 			NotificationReceiver receiver) {
 		this.mac = mac;
 		this.id = id;
 		this.pin = pin;
-		this.enableRegularUpdates = enableRegularUpdates;
+		this.updateSeconds = updateSeconds;
 		this.manager = manager;
 		this.receiver = receiver;
 		this.init();
@@ -88,9 +88,7 @@ public class ConnectorV3 {
 						workQueue.put(new LoginCommand(pin));
 						Thread.sleep(1000);
 						workQueue.put(new SyncTimeCommand());
-						if (enableRegularUpdates) {
-							this.enableRegularUpdates();
-						}
+						this.enableRegularUpdates();
 					} else {
 						logger.error("[{}] Could not get BluetoothGattService", this.getId());
 					}
@@ -99,8 +97,7 @@ public class ConnectorV3 {
 		} catch (InterruptedException e) {
 			logger.error("[{}] Could not connect to device.", this.getId(), e);
 		} catch (DBusException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("[{}] DBusException.", this.getId(), e);
 		}
 	}
 
@@ -109,13 +106,15 @@ public class ConnectorV3 {
 	}
 
 	public void enableRegularUpdates() {
-		if (scheduledExecService == null) {
-			scheduledExecService = Executors.newScheduledThreadPool(1,
-					new RequestMeasurementThreadFactory(this.getId()));
+		if (this.updateSeconds > 0) {
+			if (scheduledExecService == null) {
+				scheduledExecService = Executors.newScheduledThreadPool(1,
+						new RequestMeasurementThreadFactory(this.getId()));
+			}
+			Runnable measurePublisher = new MeasurePublisher(this);
+			measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 5, this.updateSeconds,
+					TimeUnit.SECONDS);
 		}
-		Runnable measurePublisher = new MeasurePublisher(this);
-		measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 20, TimeUnit.SECONDS);
-
 	}
 
 	public String getId() {
@@ -175,7 +174,9 @@ public class ConnectorV3 {
 
 	public void stop() {
 		logger.debug("[{}] Stopping ...", this.getId());
-		measurePublisherFuture.cancel(true);
+		if (measurePublisherFuture != null) {
+			measurePublisherFuture.cancel(true);
+		}
 
 		try {
 
@@ -189,7 +190,7 @@ public class ConnectorV3 {
 			logger.warn("Could not terminate execService.");
 		}
 		try {
-			this.disconnect();			
+			this.disconnect();
 		} catch (Exception e) {
 			logger.warn("Error during stopping.", e);
 		}
@@ -197,18 +198,18 @@ public class ConnectorV3 {
 	}
 
 	private BluetoothDevice getDevice(String address) throws InterruptedException {
-		logger.info("Searching {} ...", address);
+		logger.info("[{}] Searching {} ...", this.getId(), address);
 		List<BluetoothDevice> list = manager.getDevices();
 		if (list == null)
 			return null;
 
 		for (BluetoothDevice oneDevice : list) {
-			logger.trace("Checking device: {} with mac {}", oneDevice.getName(), oneDevice.getAddress());
+			logger.trace("[{}] Checking device: {} with mac {}", this.getId(), oneDevice.getName(),
+					oneDevice.getAddress());
 			if (oneDevice.getAddress().equals(address)) {
-				logger.debug("Found device {}", oneDevice.getName());
+				logger.debug("[{}] Found device {}", this.getId(), oneDevice.getName());
 				return oneDevice;
 			}
-			System.out.println(oneDevice.getName() + " " + oneDevice.getAddress());
 		}
 		logger.warn("Could not find {}", address);
 		return null;
@@ -238,7 +239,7 @@ class MeasurePublisher implements Runnable {
 
 	@Override
 	public void run() {
-		logger.debug("Sending my commands...");
+		logger.trace("Sending my commands...");
 		connector.send(new MeasureCommand());
 		connector.send(new DataDayCommand());
 	}
@@ -252,7 +253,7 @@ class SendReceiveThreadFactory implements ThreadFactory {
 	}
 
 	public Thread newThread(Runnable r) {
-		return new Thread(r, "SendReceive-" + this.id);
+		return new Thread(r, "Sender-" + this.id);
 	}
 }
 

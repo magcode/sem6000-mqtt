@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler;
 import org.freedesktop.dbus.interfaces.Properties.PropertiesChanged;
@@ -14,10 +16,10 @@ import org.magcode.sem6000.connector.NotificationReceiver;
 import com.github.hypfvieh.bluetooth.DeviceManager;
 
 public class ConnectionManager extends AbstractPropertiesChangedHandler {
+	private static Logger logger = LogManager.getLogger(ConnectionManager.class);
 	private DeviceManager manager;
 	private Map<String, ConnectorV3> sems = new HashMap<String, ConnectorV3>();
 	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
-
 	private NotificationReceiver receiver;
 
 	public ConnectionManager(NotificationReceiver receiver) {
@@ -30,14 +32,13 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 			this.manager.scanForBluetoothDevices(10 * 1000);
 			manager.registerPropertyHandler(this);
 		} catch (DBusException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("DBusException.", e);
 		}
 	}
 
 	public void addSem(Sem6000Config config) {
-		ConnectorV3 connector = new ConnectorV3(this.manager, config.getMac(), config.getPin(), config.getName(), true,
-				this.receiver);
+		ConnectorV3 connector = new ConnectorV3(this.manager, config.getMac(), config.getPin(), config.getName(),
+				config.getUpdateSeconds(), this.receiver);
 		sems.put(config.getName(), connector);
 		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
 		gattDataReceivers.put(config.getName(), gattDataReceiver);
@@ -45,14 +46,14 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	}
 
 	public void shutDown() {
-
+		logger.debug("Shut down started");
 		Iterator<String> it = sems.keySet().iterator();
 		while (it.hasNext()) {
 			String id = it.next();
 			ConnectorV3 connector = sems.get(id);
 			connector.stop();
 		}
-
+		logger.debug("closing connection");
 		this.manager.closeConnection();
 	}
 
@@ -79,8 +80,6 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 					}
 				}
 			}
-
 		}
-
 	}
 }

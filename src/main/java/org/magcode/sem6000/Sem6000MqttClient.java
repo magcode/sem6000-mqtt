@@ -37,13 +37,13 @@ public class Sem6000MqttClient {
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
 
-		//BluetoothManager manager = BluetoothManager.getBluetoothManager();
-		//manager.startDiscovery();
+		// BluetoothManager manager = BluetoothManager.getBluetoothManager();
+		// manager.startDiscovery();
 		Thread.sleep(5000);
 		sems = new HashMap<String, Sem6000Config>();
-		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61");
+		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61", 50);
 		sems.put("sem61", s1);
-		Sem6000Config s2 = new Sem6000Config("2C:AB:33:01:17:04", "0000", "sem62");
+		Sem6000Config s2 = new Sem6000Config("2C:AB:33:01:17:04", "0000", "sem62", 50);
 		sems.put("sem62", s2);
 
 		startMQTTClient();
@@ -132,8 +132,7 @@ class Receiver implements NotificationReceiver {
 
 	@Override
 	public void receiveSem6000Response(SemResponse response) {
-		if (response==null || response.getType()==null)
-		{
+		if (response == null || response.getType() == null) {
 			logger.error("here");
 		}
 		switch (response.getType()) {

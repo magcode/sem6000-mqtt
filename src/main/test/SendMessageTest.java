@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 import org.junit.Test;
-import org.magcode.sem6000.Sem6000MqttClient;
 import org.magcode.sem6000.connector.ByteUtils;
 import org.magcode.sem6000.connector.send.LoginCommand;
 import org.magcode.sem6000.connector.send.SyncTimeCommand;

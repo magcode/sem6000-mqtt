@@ -1,6 +1,5 @@
 package org.magcode.sem6000;
 
-import org.magcode.sem6000.connector.Connector;
 import org.magcode.sem6000.connectorv2.ConnectorV2;
 
 public class Sem6000Config {
@@ -8,11 +7,13 @@ public class Sem6000Config {
 	private String pin;
 	private ConnectorV2 connector;
 	private String name;
+	private int updateSeconds;
 
-	public Sem6000Config(String mac, String pin, String name) {
+	public Sem6000Config(String mac, String pin, String name, int updateSeconds) {
 		this.mac = mac;
 		this.pin = pin;
 		this.name = name;
+		this.updateSeconds = updateSeconds;
 	}
 
 	public String getMac() {
@@ -45,5 +46,13 @@ public class Sem6000Config {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public int getUpdateSeconds() {
+		return updateSeconds;
+	}
+
+	public void setUpdateSeconds(int updateSeconds) {
+		this.updateSeconds = updateSeconds;
 	}
 }

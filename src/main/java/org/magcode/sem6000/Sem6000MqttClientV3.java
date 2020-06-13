@@ -35,9 +35,9 @@ public class Sem6000MqttClientV3 {
 		logger.info("Started");
 		Thread.sleep(5000);
 		sems = new HashMap<String, Sem6000Config>();
-		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61");
+		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61", 30);
 		sems.put("sem61", s1);
-		Sem6000Config s2 = new Sem6000Config("2C:AB:33:01:17:04", "0000", "sem62");
+		Sem6000Config s2 = new Sem6000Config("2C:AB:33:01:17:04", "0000", "sem62", 30);
 		sems.put("sem62", s2);
 
 		startMQTTClient();
