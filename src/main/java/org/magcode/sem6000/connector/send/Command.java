@@ -40,7 +40,7 @@ public abstract class Command {
 		this.processed = processed;
 	}
 
-	public static byte[] getMessage(String command, byte[] payload) {
+	public static byte[] buildMessage(String command, byte[] payload) {
 		byte[] bcom = hexStringToByteArray(command);
 		byte[] bstart = hexStringToByteArray("0f");
 		byte[] bend = hexStringToByteArray("ffff");
@@ -70,7 +70,7 @@ public abstract class Command {
 
 	public static byte[] getMessage(String command, String payload) {
 		byte[] bpay = hexStringToByteArray(payload);
-		return getMessage(command, bpay);
+		return buildMessage(command, bpay);
 
 	}
 

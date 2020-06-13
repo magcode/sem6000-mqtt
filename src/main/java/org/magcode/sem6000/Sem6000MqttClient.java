@@ -101,7 +101,7 @@ public class Sem6000MqttClient {
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
-		mqttClient.setCallback(new Subscriber(sems, rootTopic));
+		mqttClient.setCallback(new Subscriber(rootTopic));
 		mqttClient.connect();
 		logger.info("Connected to MQTT broker.");
 		try {

@@ -20,6 +20,6 @@
 			<AppenderRef ref="Console" />
 			<AppenderRef ref="RollingFile" />
 		</Root>
-		<Logger name="org.freedesktop.dbus" level="info" additivity="false"/>		
+		<Logger name="org.freedesktop.dbus" level="info" additivity="false"/>
 	</Loggers>
 </Configuration>

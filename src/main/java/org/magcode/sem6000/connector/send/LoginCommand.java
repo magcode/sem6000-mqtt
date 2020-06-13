@@ -19,7 +19,7 @@ public class LoginCommand extends Command {
 		payload[7] = (byte) 0x00;
 		payload[8] = (byte) 0x00;
 
-		byte[] message = getMessage("1700", payload);
+		byte[] message = buildMessage("1700", payload);
 
 		setMessage(message);
 	}

@@ -2,7 +2,6 @@ package org.magcode.sem6000.connector.receive;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.Sem6000MqttClient;
 import org.magcode.sem6000.connector.ByteUtils;
 
 public class SemResponseParser {
@@ -19,23 +18,31 @@ public class SemResponseParser {
 			}
 			// login response
 			if (message[2] == (byte) 0x17 && message[3] == (byte) 0x00) {
-				return new LoginResponse(message[4],id);
+				return new LoginResponse(message[4], id);
 			}
 			// measurement response
 			if (message[2] == (byte) 0x04 && message[3] == (byte) 0x00) {
 				byte[] data = new byte[48];
 				System.arraycopy(message, 4, data, 0, 14);
-				return new MeasurementResponse(data,id);
+				return new MeasurementResponse(data, id);
 			}
 			// data day response
 			if (message[2] == (byte) 0x0a && message[3] == (byte) 0x00) {
 				byte[] data = new byte[48];
 				System.arraycopy(message, 4, data, 0, 48);
-				return new DataDayResponse(data,id);
+				return new DataDayResponse(data, id);
 			}
 			// synctime response
 			if (message[2] == (byte) 0x01 && message[3] == (byte) 0x00) {
-				return new SyncTimeResponse(message[4],id);
+				return new SyncTimeResponse(message[4], id);
+			}
+			// switch response
+			if (message[2] == (byte) 0x03 && message[3] == (byte) 0x00) {
+				return new SwitchResponse(message[4], id);
+			}
+			// led response
+			if (message[2] == (byte) 0x0f && message[3] == (byte) 0x00) {
+				return new LedResponse(id);
 			}
 			return new UnknownResponse();
 

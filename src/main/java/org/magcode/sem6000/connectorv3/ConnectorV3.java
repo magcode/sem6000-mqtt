@@ -226,7 +226,6 @@ public class ConnectorV3 {
 		}
 		return service;
 	}
-
 }
 
 class MeasurePublisher implements Runnable {

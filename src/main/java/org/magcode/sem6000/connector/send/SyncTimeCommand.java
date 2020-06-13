@@ -26,7 +26,7 @@ public class SyncTimeCommand extends Command{
 		payload[7] = (byte) 0x00;
 		payload[8] = (byte) 0x00;
 
-		byte[] message = getMessage("0100", payload);
+		byte[] message = buildMessage("0100", payload);
 		setMessage(message);
 	}
 }

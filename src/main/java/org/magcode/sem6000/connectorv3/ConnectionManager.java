@@ -11,7 +11,9 @@ import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler;
 import org.freedesktop.dbus.interfaces.Properties.PropertiesChanged;
 import org.freedesktop.dbus.types.Variant;
 import org.magcode.sem6000.Sem6000Config;
+import org.magcode.sem6000.connector.Connector;
 import org.magcode.sem6000.connector.NotificationReceiver;
+import org.magcode.sem6000.connector.send.Command;
 
 import com.github.hypfvieh.bluetooth.DeviceManager;
 
@@ -42,7 +44,15 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 		sems.put(config.getName(), connector);
 		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
 		gattDataReceivers.put(config.getName(), gattDataReceiver);
+	}
 
+	public void sendCommand(String id, Command command) {
+		ConnectorV3 connector = this.sems.get(id);
+		if (connector == null || command == null) {
+			logger.warn("Unknown id {} or command empty", id);
+		} else {
+			connector.send(command);
+		}
 	}
 
 	public void shutDown() {

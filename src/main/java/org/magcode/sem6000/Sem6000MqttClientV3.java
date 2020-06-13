@@ -30,6 +30,8 @@ public class Sem6000MqttClientV3 {
 	private static String mqttServer = "tcp://broker";
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
+	private static ConnectionManager conMan;
+	private static Subscriber mqttSubscriber;
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
@@ -41,8 +43,9 @@ public class Sem6000MqttClientV3 {
 		sems.put("sem62", s2);
 
 		startMQTTClient();
-		ConnectionManager conMan = new ConnectionManager(new MqttReceiver(mqttClient, rootTopic));
+		conMan = new ConnectionManager(new MqttReceiver(mqttClient, rootTopic));
 		conMan.init();
+		mqttSubscriber.setConnectionManager(conMan);
 
 		for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
 			Sem6000Config value = entry.getValue();
@@ -88,7 +91,8 @@ public class Sem6000MqttClientV3 {
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
-		mqttClient.setCallback(new Subscriber(sems, rootTopic));
+		mqttSubscriber = new Subscriber(rootTopic);
+		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect();
 		logger.info("Connected to MQTT broker.");
 		try {
@@ -99,12 +103,11 @@ public class Sem6000MqttClientV3 {
 		}
 		for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
 			Sem6000Config value = entry.getValue();
-			String subTopic = rootTopic + "/" + value.getName() + "/power/+/set";
+			String subTopic = rootTopic + "/" + value.getName() + "/+/set";
 			mqttClient.subscribe(subTopic);
 			logger.info("Subscribed to {}", subTopic);
 		}
 	}
-
 }
 
 class MqttReceiver implements NotificationReceiver {
@@ -120,13 +123,15 @@ class MqttReceiver implements NotificationReceiver {
 	@Override
 	public void receiveSem6000Response(SemResponse response) {
 		if (response == null || response.getType() == null) {
-			logger.error("here");
+			logger.error("Invalid response");
+			return;
 		}
 		switch (response.getType()) {
 		case measure: {
 			MeasurementResponse mr = (MeasurementResponse) response;
 			publish(topic + "/" + mr.getId() + "/voltage", mr.getVoltage());
 			publish(topic + "/" + mr.getId() + "/power", mr.getPower());
+			publish(topic + "/" + mr.getId() + "/relay", mr.isPowerOn());
 			break;
 		}
 		case dataday: {
@@ -134,10 +139,11 @@ class MqttReceiver implements NotificationReceiver {
 			publish(topic + "/" + mr.getId() + "/energytoday", mr.getToday());
 			break;
 		}
+
 		default:
 			break;
 		}
-		logger.info(response.toString());
+		logger.debug(response.toString());
 	}
 
 	protected void publish(String topic, String payload) {
