@@ -1,11 +1,8 @@
-package org.magcode.sem6000;
-
-import org.magcode.sem6000.connectorv2.ConnectorV2;
+package org.magcode.sem6000.mqtt;
 
 public class Sem6000Config {
 	private String mac;
 	private String pin;
-	private ConnectorV2 connector;
 	private String name;
 	private int updateSeconds;
 
@@ -30,14 +27,6 @@ public class Sem6000Config {
 
 	public void setPin(String pin) {
 		this.pin = pin;
-	}
-
-	public ConnectorV2 getConnector() {
-		return connector;
-	}
-
-	public void setConnector(ConnectorV2 connector) {
-		this.connector = connector;
 	}
 
 	public String getName() {

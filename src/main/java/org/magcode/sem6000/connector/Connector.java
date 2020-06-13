@@ -1,7 +1,5 @@
 package org.magcode.sem6000.connector;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -14,18 +12,17 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.freedesktop.dbus.exceptions.DBusException;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
 import org.magcode.sem6000.connector.send.LoginCommand;
 import org.magcode.sem6000.connector.send.MeasureCommand;
 import org.magcode.sem6000.connector.send.SyncTimeCommand;
 
-import tinyb.BluetoothDevice;
-import tinyb.BluetoothException;
-import tinyb.BluetoothGattCharacteristic;
-import tinyb.BluetoothGattService;
-import tinyb.BluetoothManager;
-import tinyb.BluetoothNotification;
+import com.github.hypfvieh.bluetooth.DeviceManager;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothDevice;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
 
 public class Connector {
 	private static Logger logger = LogManager.getLogger(Connector.class);
@@ -41,78 +38,81 @@ public class Connector {
 	private String mac;
 	private String id;
 	private String pin;
-	private boolean enableRegularUpdates;
+	private String notifyCharPath = "undefined";
+	private int updateSeconds;
 	private NotificationReceiver receiver;
 	private ScheduledFuture<?> measurePublisherFuture;
+	private DeviceManager manager;
 
-	public Connector(String mac, String pin, String id, boolean enableRegularUpdates, NotificationReceiver receiver) {
+	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
+			NotificationReceiver receiver) {
 		this.mac = mac;
 		this.id = id;
 		this.pin = pin;
-		this.enableRegularUpdates = enableRegularUpdates;
+		this.updateSeconds = updateSeconds;
+		this.manager = manager;
 		this.receiver = receiver;
 		this.init();
 	}
 
 	private void init() {
 		try {
-			// BluetoothManager manager = BluetoothManager.getBluetoothManager();
-			// boolean discoveryStarted = manager.startDiscovery();
-
 			sem6000 = getDevice(mac);
 			if (sem6000 != null) {
-				sem6000.enableConnectedNotifications(new BLEConnectedNotification(this));
 				if (this.connect()) {
-					// wait for characteristics scan
-					LocalDateTime startTime = LocalDateTime.now();
-					
-					while (LocalDateTime.now().isBefore(startTime.plusSeconds(30))) {
-						if (sem6000.getServicesResolved()) {
-							logger.debug("[{}] Got characteristics after {} ms", this.getId(),
-									ChronoUnit.MILLIS.between(startTime, LocalDateTime.now()));
+					for (int i = 0; i < 10; i++) {
+						boolean res = sem6000.isServicesResolved();
+						if (res) {
 							break;
 						}
-						try {
-							Thread.sleep(100);
-						} catch (InterruptedException ie) {
-
-						}
+						logger.info("[{}] Services not yet resolved. Waiting ...", this.getId());
+						Thread.sleep(1000);
 					}
-
+					logger.info("[{}] Got the service", this.getId());
 					BluetoothGattService sensorService = getService(sem6000, UUID_SERVICE);
+					if (sensorService != null) {
+						BluetoothGattCharacteristic writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
+						notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
+						notifyChar.startNotify();
 
-					BluetoothGattCharacteristic writeChar = getCharacteristic(sensorService, UUID_WRITE);
-					notifyChar = getCharacteristic(sensorService, UUID_NOTIFY);
+						workQueue = new LinkedBlockingQueue<Command>(10);
+						execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
 
-					workQueue = new LinkedBlockingQueue<Command>(10);
-					execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
+						Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
+						execService.submit(worker);
+						this.notifyCharPath = notifyChar.getDbusPath();
 
-					SendReceiveThread worker = new SendReceiveThread(workQueue, writeChar, receiver, this.getId());
-					notifyChar.enableValueNotifications(worker);
-					execService.submit(worker);
-
-					Thread.sleep(500);
-					workQueue.put(new LoginCommand(pin));
-					Thread.sleep(1000);
-					workQueue.put(new SyncTimeCommand());
-					if (enableRegularUpdates) {
+						Thread.sleep(500);
+						workQueue.put(new LoginCommand(pin));
+						Thread.sleep(1000);
+						workQueue.put(new SyncTimeCommand());
 						this.enableRegularUpdates();
+					} else {
+						logger.error("[{}] Could not get BluetoothGattService", this.getId());
 					}
 				}
 			}
 		} catch (InterruptedException e) {
 			logger.error("[{}] Could not connect to device.", this.getId(), e);
+		} catch (DBusException e) {
+			logger.error("[{}] DBusException.", this.getId(), e);
 		}
 	}
 
-	public void enableRegularUpdates() {
-		if (scheduledExecService == null) {
-			scheduledExecService = Executors.newScheduledThreadPool(1,
-					new RequestMeasurementThreadFactory(this.getId()));
-		}
-		Runnable measurePublisher = new MeasurePublisher(this);
-		measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 2, 10, TimeUnit.SECONDS);
+	public String getNotifyCharPath() {
+		return this.notifyCharPath;
+	}
 
+	public void enableRegularUpdates() {
+		if (this.updateSeconds > 0) {
+			if (scheduledExecService == null) {
+				scheduledExecService = Executors.newScheduledThreadPool(1,
+						new RequestMeasurementThreadFactory(this.getId()));
+			}
+			Runnable measurePublisher = new MeasurePublisher(this);
+			measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 5, this.updateSeconds,
+					TimeUnit.SECONDS);
+		}
 	}
 
 	public String getId() {
@@ -121,16 +121,16 @@ public class Connector {
 
 	private boolean connect() {
 		try {
-			if (sem6000 != null && sem6000.getConnected()) {
+			if (sem6000 != null && sem6000.isConnected()) {
 				logger.debug("[{}] Already connected", this.getId());
 				return true;
 			}
 
-			if (sem6000 != null && !sem6000.getConnected()) {
+			if (sem6000 != null && !sem6000.isConnected()) {
 				logger.debug("[{}] Trying to connect", this.getId());
 				return sem6000.connect();
 			}
-		} catch (BluetoothException e) {
+		} catch (Exception e) {
 			logger.error("[{}] Could not connect", this.getId(), e);
 		}
 		return false;
@@ -138,17 +138,17 @@ public class Connector {
 
 	private void disconnect() {
 		try {
-			if (sem6000 != null && sem6000.getConnected()) {
+			if (sem6000 != null && sem6000.isConnected()) {
 				logger.debug("[{}] Trying to disconnect", this.getId());
 				sem6000.disconnect();
 			}
-		} catch (BluetoothException e) {
+		} catch (Exception e) {
 			logger.error("[{}] Could not disconnect", this.getId(), e);
 		}
 	}
 
 	private synchronized void ensureConnection() {
-		if (sem6000 != null && !sem6000.getConnected()) {
+		if (sem6000 != null && !sem6000.isConnected()) {
 			logger.info("[{}] Not connected at the moment.", this.getId());
 			this.stop();
 			try {
@@ -172,8 +172,10 @@ public class Connector {
 
 	public void stop() {
 		logger.debug("[{}] Stopping ...", this.getId());
-		measurePublisherFuture.cancel(true);
-		
+		if (measurePublisherFuture != null) {
+			measurePublisherFuture.cancel(true);
+		}
+
 		try {
 
 			if (this.execService != null) {
@@ -186,96 +188,47 @@ public class Connector {
 			logger.warn("Could not terminate execService.");
 		}
 		try {
-			if (notifyChar != null) {
-				notifyChar.disableValueNotifications();
-				Thread.sleep(500);
-			}
 			this.disconnect();
-			Thread.sleep(500);
-			if (this.sem6000 != null) {
-				this.sem6000.disableConnectedNotifications();
-				Thread.sleep(2000);
-			}
-		} catch (InterruptedException e) {
+		} catch (Exception e) {
 			logger.warn("Error during stopping.", e);
 		}
 		logger.debug("[{}] Stopped.", this.getId());
-
 	}
 
 	private BluetoothDevice getDevice(String address) throws InterruptedException {
-		BluetoothManager manager = BluetoothManager.getBluetoothManager();
-		for (int i = 0; (i < 15); ++i) {
-			logger.info("Searching {} ...", address);
-			List<BluetoothDevice> list = manager.getDevices();
-			if (list == null)
-				return null;
+		logger.info("[{}] Searching {} ...", this.getId(), address);
+		List<BluetoothDevice> list = manager.getDevices();
+		if (list == null)
+			return null;
 
-			for (BluetoothDevice device : list) {
-				logger.trace("Checking device: {} with mac {}", device.getName(), device.getAddress());
-				if (device.getAddress().equals(address)) {
-					logger.debug("Found device {}", device.getName());
-					return device;
-				}
+		for (BluetoothDevice oneDevice : list) {
+			logger.trace("[{}] Checking device: {} with mac {}", this.getId(), oneDevice.getName(),
+					oneDevice.getAddress());
+			if (oneDevice.getAddress().equals(address)) {
+				logger.debug("[{}] Found device {}", this.getId(), oneDevice.getName());
+				return oneDevice;
 			}
-			Thread.sleep(2000);
 		}
 		logger.warn("Could not find {}", address);
 		return null;
 	}
 
 	private BluetoothGattService getService(BluetoothDevice device, String UUID) throws InterruptedException {
+		BluetoothGattService service = null;
+		List<BluetoothGattService> gatts = device.getGattServices();
 
-		BluetoothGattService tempService = null;
-		List<BluetoothGattService> bluetoothServices = null;
-		do {
-			bluetoothServices = device.getServices();
-			if (bluetoothServices == null)
-				return null;
-
-			for (BluetoothGattService service : bluetoothServices) {
-				logger.trace("[{}] Services exposed by device: {}", this.getId(), service.getUUID());
-				if (service.getUUID().equals(UUID))
-					tempService = service;
+		for (BluetoothGattService bluetoothGattService : gatts) {
+			if (UUID_SERVICE.equals(bluetoothGattService.getUuid())) {
+				service = bluetoothGattService;
 			}
-			Thread.sleep(4000);
-		} while (bluetoothServices.isEmpty());
-		return tempService;
-	}
-
-	private BluetoothGattCharacteristic getCharacteristic(BluetoothGattService service, String UUID) {
-		List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-		if (characteristics == null)
-			return null;
-
-		for (BluetoothGattCharacteristic characteristic : characteristics) {
-			if (characteristic.getUUID().equals(UUID))
-				return characteristic;
 		}
-		return null;
-	}
-}
-
-class BLEConnectedNotification implements BluetoothNotification<Boolean> {
-	private static Logger logger = LogManager.getLogger(Connector.class);
-	private String id;
-
-	public BLEConnectedNotification(Connector connector) {
-		this.id = connector.getId();
-	}
-
-	@Override
-	public void run(Boolean connected) {
-		if (connected) {
-			logger.info("[{}] Device reports 'Connected'", this.id);
-		} else {
-			logger.info("[{}] Device reports 'Disconnected'", this.id);
-		}
+		return service;
 	}
 }
 
 class MeasurePublisher implements Runnable {
 	private Connector connector;
+	private static Logger logger = LogManager.getLogger(MeasurePublisher.class);
 
 	public MeasurePublisher(Connector connector) {
 		this.connector = connector;
@@ -283,6 +236,7 @@ class MeasurePublisher implements Runnable {
 
 	@Override
 	public void run() {
+		logger.trace("Sending my commands...");
 		connector.send(new MeasureCommand());
 		connector.send(new DataDayCommand());
 	}
@@ -296,7 +250,7 @@ class SendReceiveThreadFactory implements ThreadFactory {
 	}
 
 	public Thread newThread(Runnable r) {
-		return new Thread(r, "SendReceive-" + this.id);
+		return new Thread(r, "Sender-" + this.id);
 	}
 }
 

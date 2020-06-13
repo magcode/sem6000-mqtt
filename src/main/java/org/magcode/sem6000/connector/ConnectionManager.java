@@ -1,4 +1,4 @@
-package org.magcode.sem6000.connectorv3;
+package org.magcode.sem6000.connector;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,17 +10,15 @@ import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler;
 import org.freedesktop.dbus.interfaces.Properties.PropertiesChanged;
 import org.freedesktop.dbus.types.Variant;
-import org.magcode.sem6000.Sem6000Config;
-import org.magcode.sem6000.connector.Connector;
-import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.send.Command;
+import org.magcode.sem6000.mqtt.Sem6000Config;
 
 import com.github.hypfvieh.bluetooth.DeviceManager;
 
 public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	private static Logger logger = LogManager.getLogger(ConnectionManager.class);
 	private DeviceManager manager;
-	private Map<String, ConnectorV3> sems = new HashMap<String, ConnectorV3>();
+	private Map<String, Connector> sems = new HashMap<String, Connector>();
 	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
 	private NotificationReceiver receiver;
 
@@ -39,7 +37,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	}
 
 	public void addSem(Sem6000Config config) {
-		ConnectorV3 connector = new ConnectorV3(this.manager, config.getMac(), config.getPin(), config.getName(),
+		Connector connector = new Connector(this.manager, config.getMac(), config.getPin(), config.getName(),
 				config.getUpdateSeconds(), this.receiver);
 		sems.put(config.getName(), connector);
 		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
@@ -47,7 +45,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	}
 
 	public void sendCommand(String id, Command command) {
-		ConnectorV3 connector = this.sems.get(id);
+		Connector connector = this.sems.get(id);
 		if (connector == null || command == null) {
 			logger.warn("Unknown id {} or command empty", id);
 		} else {
@@ -60,7 +58,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 		Iterator<String> it = sems.keySet().iterator();
 		while (it.hasNext()) {
 			String id = it.next();
-			ConnectorV3 connector = sems.get(id);
+			Connector connector = sems.get(id);
 			connector.stop();
 		}
 		logger.debug("closing connection");
@@ -73,7 +71,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 			Iterator<String> it = gattDataReceivers.keySet().iterator();
 			while (it.hasNext()) {
 				String id = it.next();
-				ConnectorV3 connector = sems.get(id);
+				Connector connector = sems.get(id);
 				if (props.getPath().equals(connector.getNotifyCharPath())) {
 					Map<String, Variant<?>> data = props.getPropertiesChanged();
 					if (data.containsKey("Value")) {

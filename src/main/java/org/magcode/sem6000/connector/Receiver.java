@@ -1,11 +1,9 @@
-package org.magcode.sem6000.connectorv3;
+package org.magcode.sem6000.connector;
 
 import java.nio.ByteBuffer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.magcode.sem6000.connector.ByteUtils;
-import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.receive.ResponseType;
 import org.magcode.sem6000.connector.receive.SemResponse;
 import org.magcode.sem6000.connector.receive.SemResponseParser;

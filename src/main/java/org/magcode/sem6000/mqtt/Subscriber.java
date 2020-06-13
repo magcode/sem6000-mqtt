@@ -1,14 +1,17 @@
-package org.magcode.sem6000;
+package org.magcode.sem6000.mqtt;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.apache.logging.log4j.Logger;
+import org.magcode.sem6000.connector.ConnectionManager;
 import org.magcode.sem6000.connector.send.LedCommand;
 import org.magcode.sem6000.connector.send.SwitchCommand;
-import org.magcode.sem6000.connectorv3.ConnectionManager;
 
 public class Subscriber implements MqttCallback {
+	private static Logger logger = LogManager.getLogger(Subscriber.class);
 	private ConnectionManager manager;
 	private String rootTopic;
 
@@ -22,7 +25,7 @@ public class Subscriber implements MqttCallback {
 
 	@Override
 	public void connectionLost(Throwable cause) {
-		// TODO Auto-generated method stub
+		logger.error("MQTT connection lost");
 	}
 
 	@Override
@@ -47,13 +50,13 @@ public class Subscriber implements MqttCallback {
 			}
 			break;
 		default:
+			logger.info("Ignoring command {} sent on {}", message.toString(), topic);
 			break;
 		}
 	}
 
 	@Override
 	public void deliveryComplete(IMqttDeliveryToken token) {
-		// TODO Auto-generated method stub
-
+		//
 	}
 }

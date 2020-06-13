@@ -1,4 +1,4 @@
-package org.magcode.sem6000;
+package org.magcode.sem6000.mqtt;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -15,14 +15,14 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.magcode.sem6000.connector.ConnectionManager;
 import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
-import org.magcode.sem6000.connectorv3.ConnectionManager;
 
-public class Sem6000MqttClientV3 {
-	private static Logger logger = LogManager.getLogger(Sem6000MqttClientV3.class);
+public class Sem6000MqttClient {
+	private static Logger logger = LogManager.getLogger(Sem6000MqttClient.class);
 	private static boolean retained = false;
 	private static int qos = 0;
 	private static MqttClient mqttClient;
@@ -111,7 +111,7 @@ public class Sem6000MqttClientV3 {
 }
 
 class MqttReceiver implements NotificationReceiver {
-	private static Logger logger = LogManager.getLogger(Receiver.class);
+	private static Logger logger = LogManager.getLogger(MqttReceiver.class);
 	private MqttClient mqttClient;
 	private String topic;
 

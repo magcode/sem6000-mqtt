@@ -1,12 +1,10 @@
-package org.magcode.sem6000.connectorv3;
+package org.magcode.sem6000.connector;
 
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
-import org.magcode.sem6000.connector.ByteUtils;
-import org.magcode.sem6000.connector.NotificationReceiver;
 import org.magcode.sem6000.connector.send.Command;
 
 import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
