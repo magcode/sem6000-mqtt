@@ -30,6 +30,7 @@ public class Connector {
 	public static final String UUID_NOTIFY = "0000fff4-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_WRITE = "0000fff3-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
+	private static final int reconnectTime = 5;
 	private BlockingQueue<Command> workQueue = null;
 	private ExecutorService execService = null;
 	private ScheduledExecutorService scheduledExecService = null;
@@ -42,6 +43,7 @@ public class Connector {
 	private int updateSeconds;
 	private NotificationReceiver receiver;
 	private ScheduledFuture<?> measurePublisherFuture;
+	private ScheduledExecutorService reconnectScheduler;
 	private DeviceManager manager;
 
 	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
@@ -52,6 +54,7 @@ public class Connector {
 		this.updateSeconds = updateSeconds;
 		this.manager = manager;
 		this.receiver = receiver;
+		reconnectScheduler = Executors.newScheduledThreadPool(1);
 		this.init();
 	}
 
@@ -77,7 +80,6 @@ public class Connector {
 
 						workQueue = new LinkedBlockingQueue<Command>(10);
 						execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
-
 						Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
 						execService.submit(worker);
 						this.notifyCharPath = notifyChar.getDbusPath();
@@ -131,9 +133,21 @@ public class Connector {
 				return sem6000.connect();
 			}
 		} catch (Exception e) {
-			logger.error("[{}] Could not connect", this.getId(), e);
+			logger.error("[{}] Could not connect.", this.getId(), e);
+			this.scheduleReconnect();
 		}
 		return false;
+	}
+
+	private void scheduleReconnect() {
+		logger.info("[{}] Scheduling reconnect in {} minutes.", this.getId(), reconnectTime);
+		reconnectScheduler.schedule(new Runnable() {
+			@Override
+			public void run() {
+				logger.info("[{}] Reconnect attempt", getId());
+				init();
+			}
+		}, reconnectTime, TimeUnit.MINUTES);
 	}
 
 	private void disconnect() {
@@ -147,7 +161,7 @@ public class Connector {
 		}
 	}
 
-	private synchronized void ensureConnection() {
+	private synchronized boolean isConnected() {
 		if (sem6000 != null && !sem6000.isConnected()) {
 			logger.info("[{}] Not connected at the moment.", this.getId());
 			this.stop();
@@ -156,17 +170,20 @@ public class Connector {
 			} catch (InterruptedException e) {
 				//
 			}
-			this.init();
+			this.scheduleReconnect();
+			return false;
 		}
+		return true;
 	}
 
 	public void send(Command command) {
 		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
-		this.ensureConnection();
-		try {
-			workQueue.put(command);
-		} catch (InterruptedException e) {
-			logger.error("Could not put command to queue", e);
+		if (this.isConnected()) {
+			try {
+				workQueue.put(command);
+			} catch (InterruptedException e) {
+				logger.error("Could not put command to queue", e);
+			}
 		}
 	}
 

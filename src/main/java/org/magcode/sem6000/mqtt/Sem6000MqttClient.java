@@ -71,6 +71,7 @@ public class Sem6000MqttClient {
 
 					mqttClient.disconnect();
 					logger2.info("Disconnected from MQTT server");
+					logger2.info("Stopped.");
 					((LifeCycle) LogManager.getContext()).stop();
 				} catch (MqttException e) {
 					logger2.error("Error during shutdown", e);
