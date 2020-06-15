@@ -20,9 +20,9 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	private DeviceManager manager;
 	private Map<String, Connector> sems = new HashMap<String, Connector>();
 	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
-	private NotificationReceiver receiver;
+	private NotificationConsumer receiver;
 
-	public ConnectionManager(NotificationReceiver receiver) {
+	public ConnectionManager(NotificationConsumer receiver) {
 		this.receiver = receiver;
 	}
 

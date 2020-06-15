@@ -13,13 +13,8 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.magcode.sem6000.connector.ConnectionManager;
-import org.magcode.sem6000.connector.NotificationReceiver;
-import org.magcode.sem6000.connector.receive.DataDayResponse;
-import org.magcode.sem6000.connector.receive.MeasurementResponse;
-import org.magcode.sem6000.connector.receive.SemResponse;
 
 public class Sem6000MqttClient {
 	private static Logger logger = LogManager.getLogger(Sem6000MqttClient.class);
@@ -31,7 +26,7 @@ public class Sem6000MqttClient {
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
 	private static ConnectionManager conMan;
-	private static Subscriber mqttSubscriber;
+	private static MqttSubscriber mqttSubscriber;
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
@@ -43,7 +38,7 @@ public class Sem6000MqttClient {
 		sems.put("sem62", s2);
 
 		startMQTTClient();
-		conMan = new ConnectionManager(new MqttReceiver(mqttClient, rootTopic));
+		conMan = new ConnectionManager(new MqttPublisher(mqttClient, rootTopic));
 		conMan.init();
 		mqttSubscriber.setConnectionManager(conMan);
 
@@ -92,7 +87,7 @@ public class Sem6000MqttClient {
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
-		mqttSubscriber = new Subscriber(rootTopic);
+		mqttSubscriber = new MqttSubscriber(rootTopic);
 		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect();
 		logger.info("Connected to MQTT broker.");
@@ -107,72 +102,6 @@ public class Sem6000MqttClient {
 			String subTopic = rootTopic + "/" + value.getName() + "/+/set";
 			mqttClient.subscribe(subTopic);
 			logger.info("Subscribed to {}", subTopic);
-		}
-	}
-}
-
-class MqttReceiver implements NotificationReceiver {
-	private static Logger logger = LogManager.getLogger(MqttReceiver.class);
-	private MqttClient mqttClient;
-	private String topic;
-
-	public MqttReceiver(MqttClient mqttClient, String topic) {
-		this.mqttClient = mqttClient;
-		this.topic = topic;
-	}
-
-	@Override
-	public void receiveSem6000Response(SemResponse response) {
-		if (response == null || response.getType() == null) {
-			logger.error("Invalid response");
-			return;
-		}
-		switch (response.getType()) {
-		case measure: {
-			MeasurementResponse mr = (MeasurementResponse) response;
-			publish(topic + "/" + mr.getId() + "/voltage", mr.getVoltage());
-			publish(topic + "/" + mr.getId() + "/power", mr.getPower());
-			publish(topic + "/" + mr.getId() + "/relay", mr.isPowerOn());
-			break;
-		}
-		case dataday: {
-			DataDayResponse mr = (DataDayResponse) response;
-			publish(topic + "/" + mr.getId() + "/energytoday", mr.getToday());
-			break;
-		}
-
-		default:
-			break;
-		}
-		logger.debug(response.toString());
-	}
-
-	protected void publish(String topic, String payload) {
-		MqttMessage message = new MqttMessage(payload.getBytes());
-		publish(topic, message);
-	}
-
-	protected void publish(String topic, boolean payload) {
-		publish(topic, Boolean.valueOf(payload).toString());
-	}
-
-	protected void publish(String topic, float payload) {
-		publish(topic, Float.toString(payload));
-	}
-
-	protected void publish(String topic, int payload) {
-		publish(topic, Integer.toString(payload));
-	}
-
-	private void publish(String topic, MqttMessage message) {
-		try {
-			message.setRetained(false);
-			message.setQos(0);
-			this.mqttClient.publish(topic, message);
-		} catch (MqttPersistenceException e) {
-			logger.error("MqttPersistenceException", e);
-		} catch (MqttException e) {
-			logger.error("MqttException", e);
 		}
 	}
 }

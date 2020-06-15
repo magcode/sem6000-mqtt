@@ -12,9 +12,9 @@ public class Receiver {
 	private static Logger logger = LogManager.getLogger(Receiver.class);
 	private String id;
 	private byte[] incompleteBuffer;
-	private NotificationReceiver notificationReceiver;
+	private NotificationConsumer notificationReceiver;
 
-	public Receiver(NotificationReceiver notificationReceiver, String id) {
+	public Receiver(NotificationConsumer notificationReceiver, String id) {
 		this.id = id;
 		this.notificationReceiver = notificationReceiver;
 	}

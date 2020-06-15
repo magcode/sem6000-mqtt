@@ -35,7 +35,7 @@ public class Connector {
 	private String notifyCharPath = "undefined";
 	private int updateSeconds;
 	private boolean reconnecting;
-	private int reconnectAttempts;
+	private int reconnectCount;
 	private ScheduledFuture<?> measurePublisherFuture;
 	private ScheduledExecutorService reconnectScheduler = null;
 	private ScheduledExecutorService measureScheduler = null;
@@ -130,8 +130,8 @@ public class Connector {
 	}
 
 	private void scheduleReconnect() {
-		reconnectAttempts++;
-		logger.info("[{}] Scheduling reconnect # {} in {} minutes.", this.getId(), reconnectAttempts, reconnectTime);
+		reconnectCount++;
+		logger.info("[{}] Scheduling reconnect #{} in {} minutes.", this.getId(), reconnectCount, reconnectTime);
 		setReconnecting(true);
 
 		reconnectScheduler.schedule(new Runnable() {
@@ -158,7 +158,7 @@ public class Connector {
 		}
 	}
 
-	private synchronized boolean isConnected() {
+	private synchronized boolean ensureConnected() {
 		if (reconnecting) {
 			logger.info("[{}] Not accepting commands. Reconnecting at the moment.", this.getId());
 			return false;
@@ -180,7 +180,7 @@ public class Connector {
 
 	public synchronized void send(Command command) {
 		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
-		if (isConnected()) {
+		if (ensureConnected()) {
 			try {
 				this.writeChar.writeValue(command.getMessage(), null);
 				Thread.sleep(400);

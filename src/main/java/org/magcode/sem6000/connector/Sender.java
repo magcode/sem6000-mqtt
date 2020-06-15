@@ -16,7 +16,7 @@ public class Sender implements Runnable {
 	private String id = "";
 
 	public Sender(BlockingQueue<Command> workQueue, BluetoothGattCharacteristic writeChar,
-			NotificationReceiver receiver, String id) {
+			NotificationConsumer receiver, String id) {
 		logger.trace("Thread started");
 		this.workQueue = workQueue;
 		this.writeChar = writeChar;

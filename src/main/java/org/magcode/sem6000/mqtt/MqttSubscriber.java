@@ -10,12 +10,12 @@ import org.magcode.sem6000.connector.ConnectionManager;
 import org.magcode.sem6000.connector.send.LedCommand;
 import org.magcode.sem6000.connector.send.SwitchCommand;
 
-public class Subscriber implements MqttCallback {
-	private static Logger logger = LogManager.getLogger(Subscriber.class);
+public class MqttSubscriber implements MqttCallback {
+	private static Logger logger = LogManager.getLogger(MqttSubscriber.class);
 	private ConnectionManager manager;
 	private String rootTopic;
 
-	public Subscriber(String rootTopic) {
+	public MqttSubscriber(String rootTopic) {
 		this.rootTopic = rootTopic;
 	}
 
