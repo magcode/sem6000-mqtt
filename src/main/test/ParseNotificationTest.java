@@ -50,6 +50,15 @@ public class ParseNotificationTest {
 		SemResponse semResponse = SemResponseParser.parseMessage(Command.hexStringToByteArray(resp), "dummy");
 		assertEquals(ResponseType.dataday, semResponse.getType());
 	}
+	
+	@Test
+	public void wrongOrderDay() {
+		String resp = "0f330a0000070001000000000000000000000000";
+		resp = resp + "0000000000000000000000002effff";
+		resp = resp + "000b000b00050000000000000000000000000000";
+		SemResponse semResponse = SemResponseParser.parseMessage(Command.hexStringToByteArray(resp), "dummy");
+		assertEquals(ResponseType.unknown, semResponse.getType());
+	}
 
 	@Test
 	public void dataDayTest() {
