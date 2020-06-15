@@ -138,6 +138,7 @@ public class Sem6000MqttClient {
 					if (key.equals("sem" + i + ".mac")) {
 						Sem6000Config one = new Sem6000Config();
 						one.setMac(props.getProperty("sem" + i + ".mac"));
+						one.setPin(props.getProperty("sem" + i + ".pin"));
 						one.setName(props.getProperty("sem" + i + ".name"));
 						one.setUpdateSeconds(Integer.valueOf(props.getProperty("sem" + i + ".refresh")));
 						sems.put(one.getName(), one);
