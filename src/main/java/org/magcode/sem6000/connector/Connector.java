@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -12,6 +13,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bluez.exceptions.BluezFailedException;
+import org.bluez.exceptions.BluezInProgressException;
+import org.bluez.exceptions.BluezInvalidValueLengthException;
+import org.bluez.exceptions.BluezNotAuthorizedException;
+import org.bluez.exceptions.BluezNotPermittedException;
+import org.bluez.exceptions.BluezNotSupportedException;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
@@ -33,8 +40,9 @@ public class Connector {
 	private static final int reconnectTime = 5;
 	private BlockingQueue<Command> workQueue = null;
 	private ExecutorService execService = null;
-	private ScheduledExecutorService scheduledExecService = null;
+
 	private BluetoothGattCharacteristic notifyChar;
+	private BluetoothGattCharacteristic writeChar;
 	private BluetoothDevice sem6000;
 	private String mac;
 	private String id;
@@ -43,7 +51,8 @@ public class Connector {
 	private int updateSeconds;
 	private NotificationReceiver receiver;
 	private ScheduledFuture<?> measurePublisherFuture;
-	private ScheduledExecutorService reconnectScheduler;
+	private ScheduledExecutorService reconnectScheduler = null;
+	private ScheduledExecutorService measureScheduler = null;
 	private DeviceManager manager;
 
 	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
@@ -54,7 +63,7 @@ public class Connector {
 		this.updateSeconds = updateSeconds;
 		this.manager = manager;
 		this.receiver = receiver;
-		reconnectScheduler = Executors.newScheduledThreadPool(1);
+		reconnectScheduler = Executors.newScheduledThreadPool(1, new ReconnectThreadFactory(id));
 		this.init();
 	}
 
@@ -74,20 +83,20 @@ public class Connector {
 					logger.info("[{}] Got the service", this.getId());
 					BluetoothGattService sensorService = getService(sem6000, UUID_SERVICE);
 					if (sensorService != null) {
-						BluetoothGattCharacteristic writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
+						writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
 						notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
 						notifyChar.startNotify();
-
-						workQueue = new LinkedBlockingQueue<Command>(10);
-						execService = Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
-						Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
-						execService.submit(worker);
 						this.notifyCharPath = notifyChar.getDbusPath();
 
+						/*
+						 * workQueue = new LinkedBlockingQueue<Command>(10); execService =
+						 * Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
+						 * Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
+						 * execService.submit(worker); this.notifyCharPath = notifyChar.getDbusPath();
+						 */
 						Thread.sleep(500);
-						workQueue.put(new LoginCommand(pin));
-						Thread.sleep(1000);
-						workQueue.put(new SyncTimeCommand());
+						this.send(new LoginCommand(pin));
+						this.send(new SyncTimeCommand());
 						this.enableRegularUpdates();
 					} else {
 						logger.error("[{}] Could not get BluetoothGattService", this.getId());
@@ -107,13 +116,25 @@ public class Connector {
 
 	public void enableRegularUpdates() {
 		if (this.updateSeconds > 0) {
-			if (scheduledExecService == null) {
-				scheduledExecService = Executors.newScheduledThreadPool(1,
-						new RequestMeasurementThreadFactory(this.getId()));
-			}
-			Runnable measurePublisher = new MeasurePublisher(this);
-			measurePublisherFuture = scheduledExecService.scheduleAtFixedRate(measurePublisher, 5, this.updateSeconds,
-					TimeUnit.SECONDS);
+			measureScheduler = Executors.newScheduledThreadPool(1, new RequestMeasurementThreadFactory(this.getId()));
+			Runnable r = new Runnable() {
+				@Override
+				public void run() {
+					send(new MeasureCommand());
+					send(new DataDayCommand());
+				}
+			};
+			measurePublisherFuture = measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
+
+			/*
+			 * 
+			 * if (scheduledExecService == null) { scheduledExecService =
+			 * Executors.newScheduledThreadPool(1, new
+			 * RequestMeasurementThreadFactory(this.getId())); } Runnable measurePublisher =
+			 * new MeasurePublisher(this); measurePublisherFuture =
+			 * scheduledExecService.scheduleAtFixedRate(measurePublisher, 5,
+			 * this.updateSeconds, TimeUnit.SECONDS);
+			 */
 		}
 	}
 
@@ -152,7 +173,7 @@ public class Connector {
 
 	private void disconnect() {
 		try {
-			if (sem6000 != null && sem6000.isConnected()) {
+			if (sem6000 != null && sem6000.isConnected() != null && sem6000.isConnected()) {
 				logger.debug("[{}] Trying to disconnect", this.getId());
 				sem6000.disconnect();
 			}
@@ -162,7 +183,7 @@ public class Connector {
 	}
 
 	private synchronized boolean isConnected() {
-		if (sem6000 != null && !sem6000.isConnected()) {
+		if (sem6000 != null && sem6000.isConnected() != null && !sem6000.isConnected()) {
 			logger.info("[{}] Not connected at the moment.", this.getId());
 			this.stop();
 			try {
@@ -176,13 +197,16 @@ public class Connector {
 		return true;
 	}
 
-	public void send(Command command) {
+	public synchronized void send(Command command) {
 		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
-		if (this.isConnected()) {
+		if (isConnected()) {
 			try {
-				workQueue.put(command);
+				this.writeChar.writeValue(command.getMessage(), null);
+				Thread.sleep(400);
+			} catch (DBusException e) {
+				e.printStackTrace();
 			} catch (InterruptedException e) {
-				logger.error("Could not put command to queue", e);
+				e.printStackTrace();
 			}
 		}
 	}
@@ -192,18 +216,16 @@ public class Connector {
 		if (measurePublisherFuture != null) {
 			measurePublisherFuture.cancel(true);
 		}
-
+		measureScheduler.shutdown();
 		try {
-
-			if (this.execService != null) {
-				this.execService.shutdownNow();
-				if (!execService.awaitTermination(100, TimeUnit.MICROSECONDS)) {
-					logger.trace("Still waiting for termination ...");
-				}
+			if (!measureScheduler.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+				measureScheduler.shutdownNow();
 			}
 		} catch (InterruptedException e) {
-			logger.warn("Could not terminate execService.");
+			measureScheduler.shutdownNow();
 		}
+		measureScheduler = null;
+
 		try {
 			this.disconnect();
 		} catch (Exception e) {
@@ -253,6 +275,7 @@ class MeasurePublisher implements Runnable {
 
 	@Override
 	public void run() {
+
 		logger.trace("Sending my commands...");
 		connector.send(new MeasureCommand());
 		connector.send(new DataDayCommand());
@@ -268,6 +291,18 @@ class SendReceiveThreadFactory implements ThreadFactory {
 
 	public Thread newThread(Runnable r) {
 		return new Thread(r, "Sender-" + this.id);
+	}
+}
+
+class ReconnectThreadFactory implements ThreadFactory {
+	private String id;
+
+	public ReconnectThreadFactory(String id) {
+		this.id = id;
+	}
+
+	public Thread newThread(Runnable r) {
+		return new Thread(r, "Reconnect-" + this.id);
 	}
 }
 
