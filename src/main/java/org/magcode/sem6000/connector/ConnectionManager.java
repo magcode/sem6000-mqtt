@@ -38,7 +38,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 
 	public void addSem(Sem6000Config config) {
 		Connector connector = new Connector(this.manager, config.getMac(), config.getPin(), config.getName(),
-				config.getUpdateSeconds(), this.receiver);
+				config.getUpdateSeconds());
 		sems.put(config.getName(), connector);
 		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
 		gattDataReceivers.put(config.getName(), gattDataReceiver);

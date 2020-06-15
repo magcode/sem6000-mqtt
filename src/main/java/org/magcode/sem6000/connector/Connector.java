@@ -1,11 +1,7 @@
 package org.magcode.sem6000.connector;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
@@ -13,12 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bluez.exceptions.BluezFailedException;
-import org.bluez.exceptions.BluezInProgressException;
-import org.bluez.exceptions.BluezInvalidValueLengthException;
-import org.bluez.exceptions.BluezNotAuthorizedException;
-import org.bluez.exceptions.BluezNotPermittedException;
-import org.bluez.exceptions.BluezNotSupportedException;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
@@ -33,15 +23,10 @@ import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
 
 public class Connector {
 	private static Logger logger = LogManager.getLogger(Connector.class);
-
 	public static final String UUID_NOTIFY = "0000fff4-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_WRITE = "0000fff3-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";
 	private static final int reconnectTime = 5;
-	private BlockingQueue<Command> workQueue = null;
-	private ExecutorService execService = null;
-
-	private BluetoothGattCharacteristic notifyChar;
 	private BluetoothGattCharacteristic writeChar;
 	private BluetoothDevice sem6000;
 	private String mac;
@@ -49,20 +34,19 @@ public class Connector {
 	private String pin;
 	private String notifyCharPath = "undefined";
 	private int updateSeconds;
-	private NotificationReceiver receiver;
+	private boolean reconnecting;
+	private int reconnectAttempts;
 	private ScheduledFuture<?> measurePublisherFuture;
 	private ScheduledExecutorService reconnectScheduler = null;
 	private ScheduledExecutorService measureScheduler = null;
 	private DeviceManager manager;
 
-	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
-			NotificationReceiver receiver) {
+	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds) {
 		this.mac = mac;
 		this.id = id;
 		this.pin = pin;
 		this.updateSeconds = updateSeconds;
 		this.manager = manager;
-		this.receiver = receiver;
 		reconnectScheduler = Executors.newScheduledThreadPool(1, new ReconnectThreadFactory(id));
 		this.init();
 	}
@@ -84,17 +68,12 @@ public class Connector {
 					BluetoothGattService sensorService = getService(sem6000, UUID_SERVICE);
 					if (sensorService != null) {
 						writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
-						notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
+						BluetoothGattCharacteristic notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
 						notifyChar.startNotify();
 						this.notifyCharPath = notifyChar.getDbusPath();
-
-						/*
-						 * workQueue = new LinkedBlockingQueue<Command>(10); execService =
-						 * Executors.newFixedThreadPool(1, new SendReceiveThreadFactory(this.getId()));
-						 * Sender worker = new Sender(workQueue, writeChar, receiver, this.getId());
-						 * execService.submit(worker); this.notifyCharPath = notifyChar.getDbusPath();
-						 */
+						setReconnecting(false);
 						Thread.sleep(500);
+						// start with login and sync time
 						this.send(new LoginCommand(pin));
 						this.send(new SyncTimeCommand());
 						this.enableRegularUpdates();
@@ -125,16 +104,6 @@ public class Connector {
 				}
 			};
 			measurePublisherFuture = measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
-
-			/*
-			 * 
-			 * if (scheduledExecService == null) { scheduledExecService =
-			 * Executors.newScheduledThreadPool(1, new
-			 * RequestMeasurementThreadFactory(this.getId())); } Runnable measurePublisher =
-			 * new MeasurePublisher(this); measurePublisherFuture =
-			 * scheduledExecService.scheduleAtFixedRate(measurePublisher, 5,
-			 * this.updateSeconds, TimeUnit.SECONDS);
-			 */
 		}
 	}
 
@@ -161,7 +130,10 @@ public class Connector {
 	}
 
 	private void scheduleReconnect() {
-		logger.info("[{}] Scheduling reconnect in {} minutes.", this.getId(), reconnectTime);
+		reconnectAttempts++;
+		logger.info("[{}] Scheduling reconnect # {} in {} minutes.", this.getId(), reconnectAttempts, reconnectTime);
+		setReconnecting(true);
+
 		reconnectScheduler.schedule(new Runnable() {
 			@Override
 			public void run() {
@@ -169,6 +141,10 @@ public class Connector {
 				init();
 			}
 		}, reconnectTime, TimeUnit.MINUTES);
+	}
+
+	private void setReconnecting(boolean rec) {
+		this.reconnecting = rec;
 	}
 
 	private void disconnect() {
@@ -183,6 +159,11 @@ public class Connector {
 	}
 
 	private synchronized boolean isConnected() {
+		if (reconnecting) {
+			logger.info("[{}] Not accepting commands. Reconnecting at the moment.", this.getId());
+			return false;
+		}
+
 		if (sem6000 != null && sem6000.isConnected() != null && !sem6000.isConnected()) {
 			logger.info("[{}] Not connected at the moment.", this.getId());
 			this.stop();
@@ -262,35 +243,6 @@ public class Connector {
 			}
 		}
 		return service;
-	}
-}
-
-class MeasurePublisher implements Runnable {
-	private Connector connector;
-	private static Logger logger = LogManager.getLogger(MeasurePublisher.class);
-
-	public MeasurePublisher(Connector connector) {
-		this.connector = connector;
-	}
-
-	@Override
-	public void run() {
-
-		logger.trace("Sending my commands...");
-		connector.send(new MeasureCommand());
-		connector.send(new DataDayCommand());
-	}
-}
-
-class SendReceiveThreadFactory implements ThreadFactory {
-	private String id;
-
-	public SendReceiveThreadFactory(String id) {
-		this.id = id;
-	}
-
-	public Thread newThread(Runnable r) {
-		return new Thread(r, "Sender-" + this.id);
 	}
 }
 
