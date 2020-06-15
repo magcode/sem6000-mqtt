@@ -6,6 +6,9 @@ public class Sem6000Config {
 	private String name;
 	private int updateSeconds;
 
+	public Sem6000Config() {
+	}
+
 	public Sem6000Config(String mac, String pin, String name, int updateSeconds) {
 		this.mac = mac;
 		this.pin = pin;

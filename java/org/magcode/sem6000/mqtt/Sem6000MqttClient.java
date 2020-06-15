@@ -1,14 +1,22 @@
 package org.magcode.sem6000.mqtt;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LifeCycle;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -18,8 +26,7 @@ import org.magcode.sem6000.connector.ConnectionManager;
 
 public class Sem6000MqttClient {
 	private static Logger logger = LogManager.getLogger(Sem6000MqttClient.class);
-	private static boolean retained = false;
-	private static int qos = 0;
+
 	private static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
 	private static String mqttServer = "tcp://broker";
@@ -27,16 +34,14 @@ public class Sem6000MqttClient {
 	private static Map<String, Sem6000Config> sems;
 	private static ConnectionManager conMan;
 	private static MqttSubscriber mqttSubscriber;
+	private static String logLevel = "INFO";
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
 		Thread.sleep(5000);
 		sems = new HashMap<String, Sem6000Config>();
-		Sem6000Config s1 = new Sem6000Config("18:62:E4:11:9A:C1", "0000", "sem61", 30);
-		sems.put("sem61", s1);
-		Sem6000Config s2 = new Sem6000Config("2C:AB:33:01:17:04", "0000", "sem62", 30);
-		sems.put("sem62", s2);
-
+		readProps();
+		reConfigureLogger();
 		startMQTTClient();
 		conMan = new ConnectionManager(new MqttPublisher(mqttClient, rootTopic));
 		conMan.init();
@@ -102,6 +107,53 @@ public class Sem6000MqttClient {
 			String subTopic = rootTopic + "/" + value.getName() + "/+/set";
 			mqttClient.subscribe(subTopic);
 			logger.info("Subscribed to {}", subTopic);
+		}
+	}
+
+	private static void reConfigureLogger() {
+		Configurator.setRootLevel(Level.forName(logLevel, 0));
+	}
+
+	private static void readProps() {
+		Properties props = new Properties();
+		InputStream input = null;
+
+		try {
+			File jarPath = new File(
+					Sem6000MqttClient.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+			String propertiesPath = jarPath.getParentFile().getAbsolutePath();
+			String filePath = propertiesPath + "/sem6000.properties";
+			logger.info("Loading properties from " + filePath);
+			input = new FileInputStream(filePath);
+			props.load(input);
+
+			rootTopic = props.getProperty("rootTopic", "home");
+			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
+			logLevel = props.getProperty("logLevel", "INFO");
+			Enumeration<?> e = props.propertyNames();
+
+			while (e.hasMoreElements()) {
+				String key = (String) e.nextElement();
+				for (int i = 1; i < 11; i++) {
+					if (key.equals("sem" + i + ".mac")) {
+						Sem6000Config one = new Sem6000Config();
+						one.setMac(props.getProperty("sem" + i + ".mac"));
+						one.setName(props.getProperty("sem" + i + ".name"));
+						one.setUpdateSeconds(Integer.valueOf(props.getProperty("sem" + i + ".refresh")));
+						sems.put(one.getName(), one);
+					}
+				}
+			}
+		} catch (IOException ex) {
+			logger.error("Could not read properties", ex);
+		} finally {
+			if (input != null) {
+				try {
+					input.close();
+				} catch (IOException e) {
+					logger.error("Failed to close file", e);
+				}
+			}
 		}
 	}
 }

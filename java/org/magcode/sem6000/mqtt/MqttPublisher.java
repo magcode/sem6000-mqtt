@@ -13,6 +13,8 @@ import org.magcode.sem6000.connector.receive.SemResponse;
 
 class MqttPublisher implements NotificationConsumer {
 	private static Logger logger = LogManager.getLogger(MqttPublisher.class);
+	private static boolean retained = false;
+	private static int qos = 0;
 	private MqttClient mqttClient;
 	private String topic;
 
@@ -66,8 +68,8 @@ class MqttPublisher implements NotificationConsumer {
 
 	private void publish(String topic, MqttMessage message) {
 		try {
-			message.setRetained(false);
-			message.setQos(0);
+			message.setRetained(retained);
+			message.setQos(qos);
 			this.mqttClient.publish(topic, message);
 		} catch (MqttPersistenceException e) {
 			logger.error("MqttPersistenceException", e);
