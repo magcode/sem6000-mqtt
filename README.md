@@ -7,12 +7,12 @@ Based on the great work of [Heckie](https://github.com/Heckie75/voltcraft-sem-60
 At the moment only crucial features are implemented: switching the relay and getting power and today's consumption values.
 
 # Supported environments
-The tool only runs on Linux and requires [Bluez](http://www.bluez.org/).
+The tool only runs on Linux and requires Java and [Bluez](http://www.bluez.org/).
 It has been tested on the following environments:
 
 ```
-Raspberry PI 3B, Raspbian 10 Buster, Bluez 5.50, built-in Bluetooth adapter usb:v1D6Bp0246d0532
-Virtual machine, Ubuntu 20.04, Bluez 5.54, Intel Bluetooth adapter 8087:0a2b
+Raspberry PI 3 B, Raspbian 10 Buster, OpenJDK 11.0.7, Bluez 5.50, built-in Bluetooth adapter usb:v1D6Bp0246d0532
+Virtual machine, Ubuntu 20.04, OpenJDK 11.0.7, Bluez 5.54, Intel Bluetooth adapter 8087:0a2b
 ```
 # Please contribute
 
@@ -29,19 +29,23 @@ refresh=60                        # number of seconds for MQTT status updates. D
 mqttServer=tcp://192.168.0.1      # IP or hostname of your mqtt broker
 logLevel=INFO                     # log level
 
-daikin1.host=192.168.0.2          # IP adress of your first Daikin Wifi adapter
-daikin1.name=ac-room1             # a name for the Daikin device, used in the MQTT topic
+sem1.mac=00:00:00:00:00:01        # the mac of your sem6000 device
+sem1.pin=0000                     # the PIN of your sem6000 device
+sem1.name=sem1                    # the name of your sem6000 device, use [a-z0-9]
+sem1.refresh=60                   # the schedule to send status information, seconds. Do not go below 30.
 
-daikin2.host=192.168.0.3
-daikin2.name=ac-room2
+sem2.mac=00:00:00:00:00:02
+sem2.pin=0000
+sem2.name=sem2
+sem2.refresh=60
 ```
 
 # Running
 It can be simply run with
 
-`java -jar /var/javaapps/daikin/daikin-mqtt-1.1.0-jar-with-dependencies.jar`
+`java -jar sem6000-mqtt-0.4.0-jar-with-dependencies.jar`
 
-Don't forget to put the `daikin.properties` right beside the jar file.
+Don't forget to put the `sem6000.properties` right beside the jar file.
 
 
 # Control sockets
@@ -49,7 +53,7 @@ Use the following topic and payloads to control the relay:
 ```
 <roottopic from properties file>/<name of sem6000 from properties file>/relay/set (true|false)
 ```
-Use the following topic and payloads to control the LED:
+Use the following topic and payloads to enable/disable the LED:
 
 ```
 <roottopic from properties file>/<name of sem6000 from properties file>/led/set (true|false)
@@ -59,7 +63,10 @@ Use the following topic and payloads to control the LED:
 The tool will publish the following messages every 60 seconds (as configured in properties file):
 
 ```
-<roottopic from properties file>/<name of sem6000 from properties file>/
+<roottopic from properties file>/<name of sem6000 from properties file>/voltage     (voltage)
+<roottopic from properties file>/<name of sem6000 from properties file>/power       (current power in watts)
+<roottopic from properties file>/<name of sem6000 from properties file>/relay       (relay, true or false)
+<roottopic from properties file>/<name of sem6000 from properties file>/energytoday (consumed energy since midnight in watt hours)
 ```
 
 # Stability and reconnects
