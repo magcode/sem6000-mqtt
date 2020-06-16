@@ -1,10 +1,10 @@
-# MQTT for SEM6000
+# MQTT for VOLTCRAFT SEM6000
 
-This tool allows to control VOLTCRAFT SEM6000 BLE (bluetooth low energy) sockets via MQTT and therefore easy integration in the home automation of your choice!
+This tool allows to control VOLTCRAFT SEM6000 BLE (bluetooth low energy) power measurement sockets via MQTT and therefore easy integration in the home automation of your choice!
 
 Based on the great work of [Heckie](https://github.com/Heckie75/voltcraft-sem-6000) and [hypfvieh](https://github.com/hypfvieh/bluez-dbus).
 
-At the moment only crucial features are implemented: switching the relay and getting power and today's consumption values.
+At the moment only crucial features are implemented: switching the relay, getting power and today's consumption values.
 
 # Supported environments
 The tool only runs on Linux and requires Java and [Bluez](http://www.bluez.org/).
@@ -21,7 +21,7 @@ For problems: Report [issues](https://github.com/magcode/sem6000-mqtt/issues).
 For the missing features: Create pull requests.
 
 # Configuration
-You need a `sem6000.properties` file:
+You need a `sem6000.properties` file where you can configure multiple SEM6000 devices.
 
 ```
 rootTopic=home                    # the mqtt root topic
