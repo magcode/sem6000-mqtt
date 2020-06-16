@@ -39,6 +39,12 @@ sem2.name=sem2
 sem2.refresh=60
 ```
 
+How to get the mac? Log on to your host and enter
+```
+bluetoothctl
+devices
+```
+
 # Running
 It can simply be run with
 
