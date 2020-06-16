@@ -12,11 +12,12 @@ It has been tested on the following environments:
 
 ```
 Raspberry PI 3B, Raspbian 10 Buster, Bluez 5.50, built-in Bluetooth adapter usb:v1D6Bp0246d0532
-Virtual machine, Ubuntu 20.04, Bluez, Intel Bluetooth adapter
+Virtual machine, Ubuntu 20.04, Bluez 5.54, Intel Bluetooth adapter 8087:0a2b
 ```
 # Please contribute
 
-For problems: Report issues.
+For problems: Report [issues](https://github.com/magcode/sem6000-mqtt/issues).
+
 For the missing features: Create pull requests.
 
 # Configuration
