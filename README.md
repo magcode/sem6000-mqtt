@@ -4,6 +4,13 @@
 This tool allows to control VOLTCRAFT SEM6000 BLE (bluetooth low energy) sockets via MQTT.
 Based on the great work of [Heckie](https://github.com/Heckie75/voltcraft-sem-6000) and [hypfvieh](https://github.com/hypfvieh/bluez-dbus)
 
+# Supported environments
+The tool has been tested on the following environments.
+
+Raspberry PI 3B, Bluez, built-in Bluetooth adapter
+Virtual machine, Ubuntu 20.04, Bluez, Intel Bluetooth adapter
+
+
 # Configuration
 You need a `sem6000.properties` file:
 
