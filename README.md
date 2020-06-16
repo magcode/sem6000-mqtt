@@ -24,15 +24,14 @@ For the missing features: Create pull requests.
 You need a `sem6000.properties` file where you can configure multiple SEM6000 devices.
 
 ```
-rootTopic=home                    # the mqtt root topic
-refresh=60                        # number of seconds for MQTT status updates. Do not go below 60!
+rootTopic=home/mysemdevices       # the mqtt root topic
 mqttServer=tcp://192.168.0.1      # IP or hostname of your mqtt broker
 logLevel=INFO                     # log level
 
 sem1.mac=00:00:00:00:00:01        # the mac of your sem6000 device
 sem1.pin=0000                     # the PIN of your sem6000 device
 sem1.name=sem1                    # the name of your sem6000 device, use [a-z0-9]
-sem1.refresh=60                   # the schedule to send status information, seconds. Do not go below 30.
+sem1.refresh=60                   # the schedule to send MQTT status information, seconds. Do not go below 30.
 
 sem2.mac=00:00:00:00:00:02
 sem2.pin=0000
@@ -41,7 +40,7 @@ sem2.refresh=60
 ```
 
 # Running
-It can be simply run with
+It can simply be run with
 
 `java -jar sem6000-mqtt-0.4.0-jar-with-dependencies.jar`
 
