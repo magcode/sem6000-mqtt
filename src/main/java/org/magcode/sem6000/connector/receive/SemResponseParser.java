@@ -27,8 +27,7 @@ public class SemResponseParser {
 				return new MeasurementResponse(data, id);
 			}
 			// data day response
-			if (message[2] == (byte) 0x0a && message[3] == (byte) 0x00 && message[actualLen - 1] == (byte) 0xff
-					&& message[actualLen - 2] == (byte) 0xff) {
+			if (actualLen == 55 && message[2] == (byte) 0x0a && message[3] == (byte) 0x00 && message[actualLen - 1] == (byte) 0xff) {
 				byte[] data = new byte[48];
 				System.arraycopy(message, 4, data, 0, 48);
 				return new DataDayResponse(data, id);
