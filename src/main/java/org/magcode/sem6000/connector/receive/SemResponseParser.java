@@ -14,6 +14,7 @@ public class SemResponseParser {
 			int actualLen = message.length;
 			logger.trace("Lenght expected: {} actual: {}", expectedLen, actualLen);
 			if (!(actualLen - expectedLen - 4 == 0 || actualLen - expectedLen - 2 == 0)) {
+				logger.trace("Its not complete");
 				return new IncompleteResponse(message);
 			}
 			// login response
