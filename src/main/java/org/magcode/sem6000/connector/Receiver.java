@@ -23,26 +23,38 @@ public class Receiver {
 		logger.debug("[{}] Got notification: {}", this.id, ByteUtils.byteArrayToHex(data));
 		byte[] toparse = data;
 
-		if (this.incompleteBuffer != null && this.incompleteBuffer.length > 200) {
-			logger.debug("[{}] Clearing buffer", this.id);
-			this.incompleteBuffer = null;
-		}
-
-		if (this.incompleteBuffer != null) {
-			logger.trace("Found data in buffer: {}", ByteUtils.byteArrayToHex(this.incompleteBuffer));
-			ByteBuffer buff = ByteBuffer.allocate(this.incompleteBuffer.length + data.length);
-			buff.put(this.incompleteBuffer).put(data);
-			toparse = buff.array();
-		}
-
+		// first check if this message can be parsed standalone
 		SemResponse resp = SemResponseParser.parseMessage(toparse, this.id);
-		if (resp.getType() == ResponseType.incomplete) {
+		if (resp.getType() != ResponseType.incomplete) {
+			notificationReceiver.receiveSem6000Response(resp);
+			this.incompleteBuffer = null;
+			return;
+		}
+
+		// it's not recognized, so put it to the the buffer
+		if (this.incompleteBuffer == null) {
 			this.incompleteBuffer = toparse;
 			return;
 		}
-		this.incompleteBuffer = null;
-		logger.debug("[{}] Got message with content: {}", this.id, resp.toString());
-		notificationReceiver.receiveSem6000Response(resp);
+
+		// it's not recognized and we have some buffer: build buffer+new message
+		logger.trace("Found data in buffer: {}", ByteUtils.byteArrayToHex(this.incompleteBuffer));
+		ByteBuffer buff = ByteBuffer.allocate(this.incompleteBuffer.length + data.length);
+		buff.put(this.incompleteBuffer).put(data);
+		// more than 60 bytes are not expected. Thus clearing the buffer.
+		if (this.incompleteBuffer != null && this.incompleteBuffer.length > 60) {
+			logger.debug("[{}] Clearing buffer", this.id);
+			this.incompleteBuffer = null;
+			return;
+		}
+		toparse = buff.array();
+		resp = SemResponseParser.parseMessage(toparse, this.id);
+		if (resp.getType() != ResponseType.incomplete) {
+			notificationReceiver.receiveSem6000Response(resp);
+			this.incompleteBuffer = null;
+		} else {
+			this.incompleteBuffer = toparse;	
+		}
 
 	}
 }
