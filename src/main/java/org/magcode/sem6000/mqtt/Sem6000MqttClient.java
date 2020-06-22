@@ -30,6 +30,7 @@ public class Sem6000MqttClient {
 	private static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
 	private static String mqttServer = "tcp://broker";
+	private static int consecutiveReconnectLimit = 100;
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
 	private static ConnectionManager conMan;
@@ -43,7 +44,7 @@ public class Sem6000MqttClient {
 		readProps();
 		reConfigureLogger();
 		startMQTTClient();
-		conMan = new ConnectionManager(new MqttPublisher(mqttClient, rootTopic));
+		conMan = new ConnectionManager(new MqttPublisher(mqttClient, rootTopic), consecutiveReconnectLimit);
 		conMan.init();
 		mqttSubscriber.setConnectionManager(conMan);
 
@@ -130,8 +131,8 @@ public class Sem6000MqttClient {
 			rootTopic = props.getProperty("rootTopic", "home");
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
 			logLevel = props.getProperty("logLevel", "INFO");
-			Enumeration<?> e = props.propertyNames();
-
+			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
+			Enumeration<?> e = props.propertyNames();			
 			while (e.hasMoreElements()) {
 				String key = (String) e.nextElement();
 				for (int i = 1; i < 11; i++) {

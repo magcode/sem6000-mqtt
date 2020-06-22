@@ -1,9 +1,11 @@
 package org.magcode.sem6000.connector;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -36,17 +38,21 @@ public class Connector {
 	private int updateSeconds;
 	private boolean reconnecting;
 	private int reconnectCount;
+	private int reconnectsSinceLastSuccess;
+	private int consecutiveReconnectLimit;
 	private ScheduledFuture<?> measurePublisherFuture;
 	private ScheduledExecutorService reconnectScheduler = null;
-	private ScheduledExecutorService measureScheduler = null;
+	private ScheduledThreadPoolExecutor measureScheduler = null;
 	private DeviceManager manager;
 
-	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds) {
+	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
+			int consecutiveReconnectLimit) {
 		this.mac = mac;
 		this.id = id;
 		this.pin = pin;
 		this.updateSeconds = updateSeconds;
 		this.manager = manager;
+		this.consecutiveReconnectLimit = consecutiveReconnectLimit;
 		reconnectScheduler = Executors.newScheduledThreadPool(1, new ReconnectThreadFactory(id));
 		this.init();
 	}
@@ -54,48 +60,82 @@ public class Connector {
 	private void init() {
 		try {
 			sem6000 = getDevice(mac);
-			if (sem6000 != null) {
-				if (this.connect()) {
-					for (int i = 0; i < 10; i++) {
-						boolean res = sem6000.isServicesResolved();
-						if (res) {
-							break;
-						}
-						logger.info("[{}] Services not yet resolved. Waiting ...", this.getId());
-						Thread.sleep(1000);
-					}
-					logger.info("[{}] Got the service", this.getId());
-					BluetoothGattService sensorService = getService(sem6000, UUID_SERVICE);
-					if (sensorService != null) {
-						writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
-						BluetoothGattCharacteristic notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
-						notifyChar.startNotify();
-						this.notifyCharPath = notifyChar.getDbusPath();
-						setReconnecting(false);
-						Thread.sleep(500);
-						// start with login and sync time
-						this.send(new LoginCommand(pin));
-						this.send(new SyncTimeCommand());
-						this.enableRegularUpdates();
-					} else {
-						logger.error("[{}] Could not get BluetoothGattService", this.getId());
-					}
-				}
+			if (sem6000 == null) {
+				logger.warn("[{}] Could not find device with this mac {}", this.getId(), this.mac);
+				this.scheduleReconnect();
+				return;
 			}
-		} catch (InterruptedException e) {
-			logger.error("[{}] Could not connect to device.", this.getId(), e);
-		} catch (DBusException e) {
-			logger.error("[{}] DBusException.", this.getId(), e);
-		}
-	}
 
-	public String getNotifyCharPath() {
-		return this.notifyCharPath;
+			if (!this.connect()) {
+				this.scheduleReconnect();
+				return;
+			}
+
+			logger.info("[{}] connected", this.getId());
+			for (int i = 0; i < 10; i++) {
+				boolean res = sem6000.isServicesResolved();
+				if (res) {
+					break;
+				}
+				logger.info("[{}] Services not yet resolved. Waiting ...", this.getId());
+				Thread.sleep(1000);
+			}
+
+			if (!sem6000.isServicesResolved()) {
+				logger.warn("[{}] Could not resolve services", this.getId());
+				this.scheduleReconnect();
+				return;
+			}
+
+			BluetoothGattService sensorService;
+			sensorService = getService(sem6000, UUID_SERVICE);
+			if (sensorService == null) {
+				logger.warn("[{}] Could not get BluetoothGattService", this.getId());
+				scheduleReconnect();
+				return;
+			}
+
+			logger.info("[{}] Got the BluetoothGattService", this.getId());
+
+			writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
+			if (writeChar == null) {
+				logger.warn("[{}] Could not get 'write' characteristic", this.getId());
+				scheduleReconnect();
+				return;
+			}
+
+			logger.info("[{}] Got the 'write' characteristic", this.getId());
+
+			BluetoothGattCharacteristic notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
+			if (notifyChar == null) {
+				logger.warn("[{}] Could not get 'notify' characteristic", this.getId());
+				scheduleReconnect();
+				return;
+			}
+
+			logger.info("[{}] Got the 'notify' characteristic", this.getId());
+
+			notifyChar.startNotify();
+			this.notifyCharPath = notifyChar.getDbusPath();
+
+			setReconnecting(false);
+			Thread.sleep(500);
+			// start with login and sync time
+			this.send(new LoginCommand(pin));
+			this.send(new SyncTimeCommand());
+			reconnectsSinceLastSuccess = 0;
+			this.enableRegularUpdates();
+		} catch (Exception ie) {
+			logger.warn("[{}] Exception during init.", this.getId(), ie);
+			this.scheduleReconnect();
+			return;
+		}
 	}
 
 	public void enableRegularUpdates() {
 		if (this.updateSeconds > 0) {
-			measureScheduler = Executors.newScheduledThreadPool(1, new RequestMeasurementThreadFactory(this.getId()));
+			measureScheduler = new ScheduledThreadPoolExecutor(1, new RequestMeasurementThreadFactory(this.getId()));
+			measureScheduler.setRemoveOnCancelPolicy(true);
 			Runnable r = new Runnable() {
 				@Override
 				public void run() {
@@ -105,10 +145,6 @@ public class Connector {
 			};
 			measurePublisherFuture = measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
 		}
-	}
-
-	public String getId() {
-		return this.id;
 	}
 
 	private boolean connect() {
@@ -123,15 +159,28 @@ public class Connector {
 				return sem6000.connect();
 			}
 		} catch (Exception e) {
-			logger.error("[{}] Could not connect.", this.getId(), e);
-			this.scheduleReconnect();
+			logger.warn("[{}] Could not connect. ({})", this.getId(), e.getMessage());
 		}
 		return false;
 	}
 
 	private void scheduleReconnect() {
+		this.stop();
+		try {
+			Thread.sleep(3000);
+		} catch (InterruptedException e) {
+			//
+		}
+		if (reconnectsSinceLastSuccess > consecutiveReconnectLimit) {
+			logger.error(
+					"Reached {} consecutive reconnects. Stopping reconnecting now. Make sure the device is reachable and restart the service.",
+					reconnectsSinceLastSuccess);
+			return;
+		}
 		reconnectCount++;
-		logger.info("[{}] Scheduling reconnect #{} in {} minutes.", this.getId(), reconnectCount, reconnectTime);
+		reconnectsSinceLastSuccess++;
+		logger.info("[{}] Scheduling reconnect #{} (#{} after last success) at {}.", this.getId(), reconnectCount,
+				reconnectsSinceLastSuccess, LocalDateTime.now().plusMinutes(reconnectTime).withNano(0));
 		setReconnecting(true);
 
 		reconnectScheduler.schedule(new Runnable() {
@@ -143,10 +192,6 @@ public class Connector {
 		}, reconnectTime, TimeUnit.MINUTES);
 	}
 
-	private void setReconnecting(boolean rec) {
-		this.reconnecting = rec;
-	}
-
 	private void disconnect() {
 		try {
 			if (sem6000 != null && sem6000.isConnected() != null && sem6000.isConnected()) {
@@ -154,7 +199,7 @@ public class Connector {
 				sem6000.disconnect();
 			}
 		} catch (Exception e) {
-			logger.error("[{}] Could not disconnect", this.getId(), e);
+			logger.warn("[{}] Could not disconnect", this.getId(), e);
 		}
 	}
 
@@ -166,12 +211,6 @@ public class Connector {
 
 		if (sem6000 != null && sem6000.isConnected() != null && !sem6000.isConnected()) {
 			logger.info("[{}] Not connected at the moment.", this.getId());
-			this.stop();
-			try {
-				Thread.sleep(3000);
-			} catch (InterruptedException e) {
-				//
-			}
 			this.scheduleReconnect();
 			return false;
 		}
@@ -180,7 +219,7 @@ public class Connector {
 
 	public synchronized void send(Command command) {
 		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
-		if (ensureConnected()) {
+		if (ensureConnected() && this.writeChar != null) {
 			try {
 				this.writeChar.writeValue(command.getMessage(), null);
 				Thread.sleep(400);
@@ -197,13 +236,16 @@ public class Connector {
 		if (measurePublisherFuture != null) {
 			measurePublisherFuture.cancel(true);
 		}
-		measureScheduler.shutdown();
-		try {
-			if (!measureScheduler.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+		if (measureScheduler != null) {
+			measureScheduler.shutdown();
+			try {
+				if (!measureScheduler.awaitTermination(2000, TimeUnit.MILLISECONDS)) {
+					measureScheduler.shutdownNow();
+				}
+			} catch (InterruptedException e) {
+				logger.trace("Interrupted. {}", e.getMessage());
 				measureScheduler.shutdownNow();
 			}
-		} catch (InterruptedException e) {
-			measureScheduler.shutdownNow();
 		}
 		measureScheduler = null;
 
@@ -215,18 +257,20 @@ public class Connector {
 		logger.debug("[{}] Stopped.", this.getId());
 	}
 
-	private BluetoothDevice getDevice(String address) throws InterruptedException {
+	private BluetoothDevice getDevice(String address) {
 		logger.info("[{}] Searching {} ...", this.getId(), address);
 		List<BluetoothDevice> list = manager.getDevices();
 		if (list == null)
 			return null;
 
 		for (BluetoothDevice oneDevice : list) {
-			logger.trace("[{}] Checking device: {} with mac {}", this.getId(), oneDevice.getName(),
-					oneDevice.getAddress());
-			if (oneDevice.getAddress().equals(address)) {
-				logger.debug("[{}] Found device {}", this.getId(), oneDevice.getName());
-				return oneDevice;
+			if (oneDevice.getAddress() != null) {
+				logger.trace("[{}] Checking device: {} with mac {}", this.getId(), oneDevice.getName(),
+						oneDevice.getAddress());
+				if (oneDevice.getAddress().equals(address)) {
+					logger.debug("[{}] Found device {}", this.getId(), oneDevice.getName());
+					return oneDevice;
+				}
 			}
 		}
 		logger.warn("Could not find {}", address);
@@ -243,6 +287,18 @@ public class Connector {
 			}
 		}
 		return service;
+	}
+
+	public String getId() {
+		return this.id;
+	}
+
+	public String getNotifyCharPath() {
+		return this.notifyCharPath;
+	}
+
+	private void setReconnecting(boolean rec) {
+		this.reconnecting = rec;
 	}
 }
 

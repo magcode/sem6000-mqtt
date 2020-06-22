@@ -21,9 +21,11 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 	private Map<String, Connector> sems = new HashMap<String, Connector>();
 	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
 	private NotificationConsumer receiver;
+	private int consecutiveReconnectLimit;
 
-	public ConnectionManager(NotificationConsumer receiver) {
+	public ConnectionManager(NotificationConsumer receiver, int consecutiveReconnectLimit) {
 		this.receiver = receiver;
+		this.consecutiveReconnectLimit = consecutiveReconnectLimit;
 	}
 
 	public void init() {
@@ -38,7 +40,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 
 	public void addSem(Sem6000Config config) {
 		Connector connector = new Connector(this.manager, config.getMac(), config.getPin(), config.getName(),
-				config.getUpdateSeconds());
+				config.getUpdateSeconds(), this.consecutiveReconnectLimit);
 		sems.put(config.getName(), connector);
 		Receiver gattDataReceiver = new Receiver(this.receiver, config.getName());
 		gattDataReceivers.put(config.getName(), gattDataReceiver);
