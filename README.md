@@ -75,4 +75,4 @@ The tool will publish the following messages every 60 seconds (as configured in 
 ```
 
 # Stability and reconnects
-A BLE connection is not stable sometimes. The tool will attempt to reconnect to the socket after five minutes in case the connection gets lost.
+A BLE connection is not stable sometimes. The tool will attempt to reconnect to the socket after five minutes in case the connection gets lost. It will stop reconnecting after reaching 100 consecutive unsuccessful reconnects.
