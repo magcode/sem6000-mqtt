@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +39,7 @@ public class Connector {
 	private int reconnectCount;
 	private int reconnectsSinceLastSuccess;
 	private int consecutiveReconnectLimit;
-	private ScheduledFuture<?> measurePublisherFuture;
 	private ScheduledExecutorService reconnectScheduler = null;
-	private ScheduledThreadPoolExecutor measureScheduler = null;
 	private DeviceManager manager;
 
 	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
@@ -53,7 +50,8 @@ public class Connector {
 		this.updateSeconds = updateSeconds;
 		this.manager = manager;
 		this.consecutiveReconnectLimit = consecutiveReconnectLimit;
-		reconnectScheduler = Executors.newScheduledThreadPool(1, new ReconnectThreadFactory(id));
+		reconnectScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(id, "Reconnect"));
+		this.enableRegularUpdates();
 		this.init();
 	}
 
@@ -71,18 +69,18 @@ public class Connector {
 				return;
 			}
 
-			logger.info("[{}] connected", this.getId());
+			logger.debug("[{}] connected", this.getId());
 			for (int i = 0; i < 10; i++) {
 				boolean res = sem6000.isServicesResolved();
 				if (res) {
 					break;
 				}
-				logger.info("[{}] Services not yet resolved. Waiting ...", this.getId());
+				logger.debug("[{}] Services not yet resolved. Waiting ...", this.getId());
 				Thread.sleep(1000);
 			}
 
 			if (!sem6000.isServicesResolved()) {
-				logger.warn("[{}] Could not resolve services", this.getId());
+				logger.debug("[{}] Could not resolve services", this.getId());
 				this.scheduleReconnect();
 				return;
 			}
@@ -90,43 +88,43 @@ public class Connector {
 			BluetoothGattService sensorService;
 			sensorService = getService(sem6000, UUID_SERVICE);
 			if (sensorService == null) {
-				logger.warn("[{}] Could not get BluetoothGattService", this.getId());
+				logger.debug("[{}] Could not get BluetoothGattService", this.getId());
 				scheduleReconnect();
 				return;
 			}
 
-			logger.info("[{}] Got the BluetoothGattService", this.getId());
+			logger.debug("[{}] Got the BluetoothGattService", this.getId());
 
 			writeChar = sensorService.getGattCharacteristicByUuid(UUID_WRITE);
 			if (writeChar == null) {
-				logger.warn("[{}] Could not get 'write' characteristic", this.getId());
+				logger.debug("[{}] Could not get 'write' characteristic", this.getId());
 				scheduleReconnect();
 				return;
 			}
 
-			logger.info("[{}] Got the 'write' characteristic", this.getId());
+			logger.debug("[{}] Got the 'write' characteristic", this.getId());
 
 			BluetoothGattCharacteristic notifyChar = sensorService.getGattCharacteristicByUuid(UUID_NOTIFY);
 			if (notifyChar == null) {
-				logger.warn("[{}] Could not get 'notify' characteristic", this.getId());
+				logger.debug("[{}] Could not get 'notify' characteristic", this.getId());
 				scheduleReconnect();
 				return;
 			}
 
-			logger.info("[{}] Got the 'notify' characteristic", this.getId());
+			logger.debug("[{}] Got the 'notify' characteristic", this.getId());
 
 			notifyChar.startNotify();
 			this.notifyCharPath = notifyChar.getDbusPath();
 
-			setReconnecting(false);
 			Thread.sleep(500);
+			setReconnecting(false);
+			logger.info("[{}] Connection process successful", this.getId());
 			// start with login and sync time
 			this.send(new LoginCommand(pin));
 			this.send(new SyncTimeCommand());
 			reconnectsSinceLastSuccess = 0;
-			this.enableRegularUpdates();
 		} catch (Exception ie) {
-			logger.warn("[{}] Exception during init.", this.getId(), ie);
+			logger.debug("[{}] Exception during init.", this.getId(), ie);
 			this.scheduleReconnect();
 			return;
 		}
@@ -134,8 +132,11 @@ public class Connector {
 
 	public void enableRegularUpdates() {
 		if (this.updateSeconds > 0) {
-			measureScheduler = new ScheduledThreadPoolExecutor(1, new RequestMeasurementThreadFactory(this.getId()));
+			ScheduledThreadPoolExecutor measureScheduler = new ScheduledThreadPoolExecutor(1,
+					new NamedThreadFactory(this.getId(), "RequestMeasurement"));
 			measureScheduler.setRemoveOnCancelPolicy(true);
+			measureScheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+			measureScheduler.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 			Runnable r = new Runnable() {
 				@Override
 				public void run() {
@@ -143,10 +144,15 @@ public class Connector {
 					send(new DataDayCommand());
 				}
 			};
-			measurePublisherFuture = measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
+			measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
 		}
 	}
 
+	/**
+	 * Will attemt to connect to the BLE device
+	 * 
+	 * @return true for successful
+	 */
 	private boolean connect() {
 		try {
 			if (sem6000 != null && sem6000.isConnected()) {
@@ -159,11 +165,16 @@ public class Connector {
 				return sem6000.connect();
 			}
 		} catch (Exception e) {
-			logger.warn("[{}] Could not connect. ({})", this.getId(), e.getMessage());
+			logger.debug("[{}] Could not connect. ({})", this.getId(), e.getMessage());
 		}
 		return false;
 	}
 
+	/**
+	 * Will schedule a reconnect in {@value #reconnectTime} minutes. In case a
+	 * threshold for subsequent reconnect failures is reaches, this won't do
+	 * anything.
+	 */
 	private void scheduleReconnect() {
 		this.stop();
 		try {
@@ -192,73 +203,68 @@ public class Connector {
 		}, reconnectTime, TimeUnit.MINUTES);
 	}
 
-	private void disconnect() {
-		try {
-			if (sem6000 != null && sem6000.isConnected() != null && sem6000.isConnected()) {
-				logger.debug("[{}] Trying to disconnect", this.getId());
-				sem6000.disconnect();
-			}
-		} catch (Exception e) {
-			logger.warn("[{}] Could not disconnect", this.getId(), e);
-		}
-	}
-
+	/**
+	 * Verifies the BLE device is connected. Returns false if reconnecting at the
+	 * moment. In case it is not connected, calls scheduleReconnect() and returns
+	 * false.
+	 * 
+	 * @return
+	 */
 	private synchronized boolean ensureConnected() {
 		if (reconnecting) {
-			logger.info("[{}] Not accepting commands. Reconnecting at the moment.", this.getId());
+			logger.trace("[{}] Not accepting commands. Reconnecting at the moment.", this.getId());
 			return false;
 		}
 
 		if (sem6000 != null && sem6000.isConnected() != null && !sem6000.isConnected()) {
-			logger.info("[{}] Not connected at the moment.", this.getId());
+			logger.debug("[{}] Not connected at the moment.", this.getId());
 			this.scheduleReconnect();
 			return false;
 		}
 		return true;
 	}
 
+	/**
+	 * Convenience method to request all measurements in one go. Results will be
+	 * reported by the ConnectionManager.
+	 */
+	public void requestMeasurements() {
+		this.send(new MeasureCommand());
+		this.send(new DataDayCommand());
+	}
+
 	public synchronized void send(Command command) {
-		logger.debug("[{}] Got command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
 		if (ensureConnected() && this.writeChar != null) {
+			logger.debug("[{}] Sending command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
 			try {
 				this.writeChar.writeValue(command.getMessage(), null);
 				Thread.sleep(400);
 			} catch (DBusException e) {
-				e.printStackTrace();
+				logger.warn("Error during sending.", e);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				//
 			}
 		}
 	}
 
+	/**
+	 * Disconnects from the device.
+	 */
 	public void stop() {
 		logger.debug("[{}] Stopping ...", this.getId());
-		if (measurePublisherFuture != null) {
-			measurePublisherFuture.cancel(true);
-		}
-		if (measureScheduler != null) {
-			measureScheduler.shutdown();
-			try {
-				if (!measureScheduler.awaitTermination(2000, TimeUnit.MILLISECONDS)) {
-					measureScheduler.shutdownNow();
-				}
-			} catch (InterruptedException e) {
-				logger.trace("Interrupted. {}", e.getMessage());
-				measureScheduler.shutdownNow();
-			}
-		}
-		measureScheduler = null;
-
 		try {
-			this.disconnect();
+			if (sem6000 != null && sem6000.isConnected() != null && sem6000.isConnected()) {
+				logger.debug("[{}] Trying to disconnect", this.getId());
+				sem6000.disconnect();
+			}
 		} catch (Exception e) {
-			logger.warn("Error during stopping.", e);
+			logger.debug("[{}] Error during stopping.", this.getId());
 		}
 		logger.debug("[{}] Stopped.", this.getId());
 	}
 
 	private BluetoothDevice getDevice(String address) {
-		logger.info("[{}] Searching {} ...", this.getId(), address);
+		logger.debug("[{}] Searching {} ...", this.getId(), address);
 		List<BluetoothDevice> list = manager.getDevices();
 		if (list == null)
 			return null;
@@ -273,7 +279,7 @@ public class Connector {
 				}
 			}
 		}
-		logger.warn("Could not find {}", address);
+		logger.debug("Could not find {}", address);
 		return null;
 	}
 
@@ -302,26 +308,16 @@ public class Connector {
 	}
 }
 
-class ReconnectThreadFactory implements ThreadFactory {
+class NamedThreadFactory implements ThreadFactory {
 	private String id;
+	private String prefix;
 
-	public ReconnectThreadFactory(String id) {
+	public NamedThreadFactory(String id, String prefix) {
 		this.id = id;
+		this.prefix = prefix;
 	}
 
 	public Thread newThread(Runnable r) {
-		return new Thread(r, "Reconnect-" + this.id);
-	}
-}
-
-class RequestMeasurementThreadFactory implements ThreadFactory {
-	private String id;
-
-	public RequestMeasurementThreadFactory(String id) {
-		this.id = id;
-	}
-
-	public Thread newThread(Runnable r) {
-		return new Thread(r, "RequestMeasurement-" + this.id);
+		return new Thread(r, this.prefix + "-" + this.id);
 	}
 }

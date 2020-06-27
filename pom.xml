@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.magcode</groupId>
 	<artifactId>sem6000-mqtt</artifactId>
-	<version>0.5.0</version>
+	<version>1.0.0</version>
 	<repositories>
 		<repository>
 			<id>Eclipse Paho Repo</id>

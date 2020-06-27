@@ -37,6 +37,7 @@ public class MqttSubscriber implements MqttCallback {
 		switch (prop) {
 		case "relay":
 			Boolean onOff = Boolean.valueOf(message.toString());
+			logger.info("Sending 'switch' {} to {}", onOff, node);
 			SwitchCommand switcher = new SwitchCommand(onOff);
 			if (manager != null) {
 				manager.sendCommand(node, switcher);
@@ -44,6 +45,7 @@ public class MqttSubscriber implements MqttCallback {
 			break;
 		case "led":
 			Boolean ledOnOff = Boolean.valueOf(message.toString());
+			logger.info("Sending 'led' {} to {}", ledOnOff, node);
 			LedCommand ledCommand = new LedCommand(ledOnOff);
 			if (manager != null) {
 				manager.sendCommand(node, ledCommand);

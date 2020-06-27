@@ -12,6 +12,7 @@ It has been tested on the following environments:
 
 ```
 Raspberry PI 3 B, Raspbian 10 Buster, OpenJDK 11.0.7, Bluez 5.50, built-in Bluetooth adapter usb:v1D6Bp0246d0532
+Raspberry PI 3 B, Raspbian 10 Buster, OpenJDK 11.0.7, Bluez 5.50, USB Bluetooth adapter 0a12:0001 Cambridge Silicon Radio, Ltd Bluetooth Dongle
 Virtual machine, Ubuntu 20.04, OpenJDK 11.0.7, Bluez 5.54, Intel Bluetooth adapter 8087:0a2b
 ```
 # Please contribute
@@ -21,12 +22,11 @@ For problems: Report [issues](https://github.com/magcode/sem6000-mqtt/issues).
 For the missing features: Create pull requests.
 
 # Configuration
-You need a `sem6000.properties` file where you can configure multiple SEM6000 devices.
+You need a `sem6.properties` file where you can configure multiple SEM6000 devices.
 
 ```
 rootTopic=home/mysemdevices       # the mqtt root topic
 mqttServer=tcp://192.168.0.1      # IP or hostname of your mqtt broker
-logLevel=INFO                     # log level
 
 sem1.mac=00:00:00:00:00:01        # the mac of your sem6000 device
 sem1.pin=0000                     # the PIN of your sem6000 device
@@ -48,9 +48,9 @@ devices
 # Running
 It can simply be run with
 
-`java -jar sem6000-mqtt-0.4.0-jar-with-dependencies.jar`
+`java -jar sem6000-mqtt-1.0.0-jar-with-dependencies.jar`
 
-Don't forget to put the `sem6000.properties` right beside the jar file.
+Don't forget to put the `sem6.properties` right beside the jar file.
 
 
 # Control sockets

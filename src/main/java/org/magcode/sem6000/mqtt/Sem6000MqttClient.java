@@ -12,11 +12,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LifeCycle;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -35,14 +33,12 @@ public class Sem6000MqttClient {
 	private static Map<String, Sem6000Config> sems;
 	private static ConnectionManager conMan;
 	private static MqttSubscriber mqttSubscriber;
-	private static String logLevel = "INFO";
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
 		Thread.sleep(5000);
 		sems = new HashMap<String, Sem6000Config>();
 		readProps();
-		reConfigureLogger();
 		startMQTTClient();
 		conMan = new ConnectionManager(new MqttPublisher(mqttClient, rootTopic), consecutiveReconnectLimit);
 		conMan.init();
@@ -111,10 +107,6 @@ public class Sem6000MqttClient {
 		}
 	}
 
-	private static void reConfigureLogger() {
-		Configurator.setRootLevel(Level.forName(logLevel, 0));
-	}
-
 	private static void readProps() {
 		Properties props = new Properties();
 		InputStream input = null;
@@ -123,16 +115,15 @@ public class Sem6000MqttClient {
 			File jarPath = new File(
 					Sem6000MqttClient.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 			String propertiesPath = jarPath.getParentFile().getAbsolutePath();
-			String filePath = propertiesPath + "/sem6000.properties";
+			String filePath = propertiesPath + "/sem6.properties";
 			logger.info("Loading properties from " + filePath);
 			input = new FileInputStream(filePath);
 			props.load(input);
 
 			rootTopic = props.getProperty("rootTopic", "home");
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
-			logLevel = props.getProperty("logLevel", "INFO");
 			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
-			Enumeration<?> e = props.propertyNames();			
+			Enumeration<?> e = props.propertyNames();
 			while (e.hasMoreElements()) {
 				String key = (String) e.nextElement();
 				for (int i = 1; i < 11; i++) {
@@ -147,7 +138,8 @@ public class Sem6000MqttClient {
 				}
 			}
 		} catch (IOException ex) {
-			logger.error("Could not read properties", ex);
+			logger.fatal("Could not read properties", ex);
+			System.exit(1);
 		} finally {
 			if (input != null) {
 				try {
