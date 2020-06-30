@@ -60,12 +60,11 @@ public class Sem6000MqttClient {
 						Sem6000Config value = entry.getValue();
 						MqttMessage message = new MqttMessage();
 						message.setPayload("lost".getBytes());
-						message.setRetained(true);
+						message.setRetained(false);
 						String deviceTopic = rootTopic + "/" + value.getName();
-						mqttClient.publish(deviceTopic + "/$state", message);
+						mqttClient.publish(deviceTopic + "/state", message);
 						logger2.info("Published '{}' to '{}'", message, deviceTopic + "/$state");
 					}
-
 					mqttClient.disconnect();
 					logger2.info("Disconnected from MQTT server");
 					logger2.info("Stopped.");

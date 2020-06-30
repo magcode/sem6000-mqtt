@@ -8,6 +8,7 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.apache.logging.log4j.Logger;
 import org.magcode.sem6000.connector.ConnectionManager;
 import org.magcode.sem6000.connector.send.LedCommand;
+import org.magcode.sem6000.connector.send.MeasureCommand;
 import org.magcode.sem6000.connector.send.SwitchCommand;
 
 public class MqttSubscriber implements MqttCallback {
@@ -37,15 +38,17 @@ public class MqttSubscriber implements MqttCallback {
 		switch (prop) {
 		case "relay":
 			Boolean onOff = Boolean.valueOf(message.toString());
-			logger.info("Sending 'switch' {} to {}", onOff, node);
+			logger.info("[{}] Sending 'switch' {}", node, onOff);
 			SwitchCommand switcher = new SwitchCommand(onOff);
 			if (manager != null) {
 				manager.sendCommand(node, switcher);
+				MeasureCommand measure = new MeasureCommand();
+				manager.sendCommand(node, measure);
 			}
 			break;
 		case "led":
 			Boolean ledOnOff = Boolean.valueOf(message.toString());
-			logger.info("Sending 'led' {} to {}", ledOnOff, node);
+			logger.info("[{}] Sending 'led' {}", node, ledOnOff);
 			LedCommand ledCommand = new LedCommand(ledOnOff);
 			if (manager != null) {
 				manager.sendCommand(node, ledCommand);

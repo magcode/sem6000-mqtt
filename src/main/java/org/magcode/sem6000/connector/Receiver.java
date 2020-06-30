@@ -53,8 +53,11 @@ public class Receiver {
 			notificationReceiver.receiveSem6000Response(resp);
 			this.incompleteBuffer = null;
 		} else {
-			this.incompleteBuffer = toparse;	
+			this.incompleteBuffer = toparse;
 		}
+	}
 
+	public synchronized void receive(SemResponse response) {
+		notificationReceiver.receiveSem6000Response(response);
 	}
 }

@@ -7,6 +7,7 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.magcode.sem6000.connector.NotificationConsumer;
+import org.magcode.sem6000.connector.receive.AvailabilityResponse;
 import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
@@ -41,6 +42,17 @@ class MqttPublisher implements NotificationConsumer {
 			DataDayResponse mr = (DataDayResponse) response;
 			publish(topic + "/" + mr.getId() + "/energytoday", mr.getToday());
 			break;
+		}
+		case availability: {
+			AvailabilityResponse ar = (AvailabilityResponse) response;
+			switch (ar.getAvailability()) {
+			case lost:
+				publish(topic + "/" + ar.getId() + "/state", "lost");
+				break;
+			case available:
+				publish(topic + "/" + ar.getId() + "/state", "online");
+				break;
+			}
 		}
 
 		default:

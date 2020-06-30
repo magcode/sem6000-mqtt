@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
+import org.magcode.sem6000.connector.receive.AvailabilityResponse;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
 import org.magcode.sem6000.connector.send.LoginCommand;
@@ -41,13 +42,15 @@ public class Connector {
 	private int consecutiveReconnectLimit;
 	private ScheduledExecutorService reconnectScheduler = null;
 	private DeviceManager manager;
+	private Receiver gattDataReceiver;
 
 	public Connector(DeviceManager manager, String mac, String pin, String id, int updateSeconds,
-			int consecutiveReconnectLimit) {
+			int consecutiveReconnectLimit, Receiver gattDataReceiver) {
 		this.mac = mac;
 		this.id = id;
 		this.pin = pin;
 		this.updateSeconds = updateSeconds;
+		this.gattDataReceiver = gattDataReceiver;
 		this.manager = manager;
 		this.consecutiveReconnectLimit = consecutiveReconnectLimit;
 		reconnectScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(id, "Reconnect"));
@@ -134,14 +137,14 @@ public class Connector {
 		if (this.updateSeconds > 0) {
 			ScheduledThreadPoolExecutor measureScheduler = new ScheduledThreadPoolExecutor(1,
 					new NamedThreadFactory(this.getId(), "RequestMeasurement"));
-			measureScheduler.setRemoveOnCancelPolicy(true);
-			measureScheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-			measureScheduler.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 			Runnable r = new Runnable() {
 				@Override
 				public void run() {
-					send(new MeasureCommand());
-					send(new DataDayCommand());
+					try {
+						requestMeasurements();
+					} catch (Exception ex) {
+						logger.warn("Exception in scheduled job", ex);
+					}
 				}
 			};
 			measureScheduler.scheduleAtFixedRate(r, 5, this.updateSeconds, TimeUnit.SECONDS);
@@ -149,7 +152,7 @@ public class Connector {
 	}
 
 	/**
-	 * Will attemt to connect to the BLE device
+	 * Will attempt to connect to the BLE device
 	 * 
 	 * @return true for successful
 	 */
@@ -176,6 +179,7 @@ public class Connector {
 	 * anything.
 	 */
 	private void scheduleReconnect() {
+		gattDataReceiver.receive(new AvailabilityResponse(AvailabilityResponse.Availability.lost, this.getId()));
 		this.stop();
 		try {
 			Thread.sleep(3000);
@@ -190,8 +194,8 @@ public class Connector {
 		}
 		reconnectCount++;
 		reconnectsSinceLastSuccess++;
-		logger.info("[{}] Scheduling reconnect #{} (#{} after last success) at {}.", this.getId(), reconnectCount,
-				reconnectsSinceLastSuccess, LocalDateTime.now().plusMinutes(reconnectTime).withNano(0));
+		logger.info("[{}] Not connected. Scheduling reconnect #{} (#{} after last success) at {}.", this.getId(),
+				reconnectCount, reconnectsSinceLastSuccess, LocalDateTime.now().plusMinutes(reconnectTime).withNano(0));
 		setReconnecting(true);
 
 		reconnectScheduler.schedule(new Runnable() {
@@ -230,21 +234,26 @@ public class Connector {
 	 */
 	public void requestMeasurements() {
 		this.send(new MeasureCommand());
-		this.send(new DataDayCommand());
+		if (this.send(new DataDayCommand())) {
+			gattDataReceiver
+					.receive(new AvailabilityResponse(AvailabilityResponse.Availability.available, this.getId()));
+		}
 	}
 
-	public synchronized void send(Command command) {
+	public synchronized boolean send(Command command) {
 		if (ensureConnected() && this.writeChar != null) {
 			logger.debug("[{}] Sending command {}", this.getId(), ByteUtils.byteArrayToHex(command.getMessage()));
 			try {
 				this.writeChar.writeValue(command.getMessage(), null);
 				Thread.sleep(400);
+				return true;
 			} catch (DBusException e) {
 				logger.warn("Error during sending.", e);
 			} catch (InterruptedException e) {
 				//
 			}
 		}
+		return false;
 	}
 
 	/**
