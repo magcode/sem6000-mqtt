@@ -70,7 +70,7 @@
 		<dependency>
 			<groupId>com.github.hypfvieh</groupId>
 			<artifactId>bluez-dbus</artifactId>
-			<version>0.1.2-SNAPSHOT</version>
+			<version>0.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
