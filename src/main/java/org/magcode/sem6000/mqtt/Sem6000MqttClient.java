@@ -90,7 +90,7 @@ public class Sem6000MqttClient {
 		connOpt.setAutomaticReconnect(true);
 		mqttSubscriber = new MqttSubscriber(rootTopic);
 		mqttClient.setCallback(mqttSubscriber);
-		mqttClient.connect();
+		mqttClient.connect(connOpt);
 		logger.info("Connected to MQTT broker.");
 		try {
 			// give some time before subscribing
