@@ -1,6 +1,5 @@
 package org.magcode.sem6000.mqtt;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -31,7 +30,7 @@ public class MqttSubscriber implements MqttCallback {
 
 	@Override
 	public void messageArrived(String topic, MqttMessage message) throws Exception {
-		String full = StringUtils.substringAfter(topic, rootTopic + "/");
+		String full = topic.substring(topic.indexOf(rootTopic + "/") + 1);
 		String[] parts = full.split("/");
 		String node = parts[0];
 		String prop = parts[1];
