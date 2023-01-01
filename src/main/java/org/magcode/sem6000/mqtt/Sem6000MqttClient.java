@@ -10,6 +10,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -28,6 +29,10 @@ public class Sem6000MqttClient {
 	private static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
 	private static String mqttServer = "tcp://broker";
+	private static boolean mqttHasCredentials = false;
+	private static String mqttClientId;
+	private static String mqttUsername;
+	private static String mqttPassword;
 	private static int consecutiveReconnectLimit = 100;
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
@@ -77,17 +82,15 @@ public class Sem6000MqttClient {
 	}
 
 	private static void startMQTTClient() throws MqttException {
-		String hostName = "";
-		try {
-			hostName = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			logger.error("Failed to get hostname", e);
-		}
-		mqttClient = new MqttClient(mqttServer, "client-for-sem6000-on-" + hostName, new MemoryPersistence());
+		mqttClient = new MqttClient(mqttServer, Optional.ofNullable(mqttClientId).orElse(generateClientId()), new MemoryPersistence());
 		MqttConnectOptions connOpt = new MqttConnectOptions();
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
+		if (mqttHasCredentials) {
+			connOpt.setUserName(mqttUsername);
+			connOpt.setPassword(mqttPassword.toCharArray());
+		}
 		mqttSubscriber = new MqttSubscriber(rootTopic);
 		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect(connOpt);
@@ -106,6 +109,16 @@ public class Sem6000MqttClient {
 		}
 	}
 
+	private static String generateClientId() {
+		String hostName = "";
+		try {
+			hostName = InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException e) {
+			logger.error("Failed to get hostname", e);
+		}
+		return "client-for-sem6000-on-" + hostName;
+	}
+
 	private static void readProps() {
 		Properties props = new Properties();
 		InputStream input = null;
@@ -121,6 +134,12 @@ public class Sem6000MqttClient {
 
 			rootTopic = props.getProperty("rootTopic", "home");
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
+			mqttClientId = props.getProperty("mqttClientId");
+			if (props.containsKey("mqttUsername") || props.containsKey("mqttPassword")) {
+				mqttHasCredentials = true;
+				mqttUsername = props.getProperty("mqttUsername", "mqtt");
+				mqttPassword = props.getProperty("mqttPassword", "mqttPassword");
+			}
 			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
 			Enumeration<?> e = props.propertyNames();
 			while (e.hasMoreElements()) {
