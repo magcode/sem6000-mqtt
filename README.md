@@ -29,9 +29,13 @@ You need a `sem6.properties` file where you can configure multiple SEM6000 devic
 ```
 rootTopic=home/mysemdevices       # the mqtt root topic
 mqttServer=tcp://192.168.0.1      # IP or hostname of your mqtt broker
+mqttClientId=client-for-sem6000   # Client Id when accessing mqtt broker
+# Username and password to authenticate at mqtt broker. Leave both empty for unprotected broker  
+mqttUsername=mqttUsername
+mqttPassword=mqttSecret 
 
 sem1.mac=00:00:00:00:00:01        # the mac of your sem6000 device
-sem1.pin=0000                     # the PIN of your sem6000 device
+sem1.pin=0000                     # the PIN of your sem6000 device. Default is 0000
 sem1.name=sem1                    # the name of your sem6000 device, use [a-z0-9]
 sem1.refresh=60                   # the schedule to send MQTT status information, seconds. Do not go below 30.
 
