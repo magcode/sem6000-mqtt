@@ -12,7 +12,7 @@ import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
 
-class MqttPublisher implements NotificationConsumer {
+public class MqttPublisher implements NotificationConsumer {
 	private static Logger logger = LogManager.getLogger(MqttPublisher.class);
 	private static boolean retained = false;
 	private static int qos = 0;

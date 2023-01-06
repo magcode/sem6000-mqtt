@@ -92,4 +92,8 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 			}
 		}
 	}
+
+	public void addSemConfig(com.github.sem2mqtt.configuration.Sem6000Config sem6000Config) {
+
+	}
 }

@@ -26,7 +26,7 @@ import org.magcode.sem6000.connector.ConnectionManager;
 public class Sem6000MqttClient {
 	private static Logger logger = LogManager.getLogger(Sem6000MqttClient.class);
 
-	private static MqttClient mqttClient;
+	public static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
 	private static String mqttServer = "tcp://broker";
 	private static boolean mqttHasCredentials = false;
@@ -37,7 +37,7 @@ public class Sem6000MqttClient {
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
 	private static ConnectionManager conMan;
-	private static MqttSubscriber mqttSubscriber;
+	public static MqttSubscriber mqttSubscriber;
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Started");
@@ -81,7 +81,7 @@ public class Sem6000MqttClient {
 		});
 	}
 
-	private static void startMQTTClient() throws MqttException {
+	public static void startMQTTClient() throws MqttException {
 		mqttClient = new MqttClient(mqttServer, Optional.ofNullable(mqttClientId).orElse(generateClientId()), new MemoryPersistence());
 		MqttConnectOptions connOpt = new MqttConnectOptions();
 		connOpt.setCleanSession(true);

@@ -1,0 +1,16 @@
+mqtt:
+  rootTopic: home/mysemdevices
+  url: tcp://192.168.0.1
+  clientId: client-for-sem6000
+  username: mqttUsername
+  password: mqttSecret
+
+sem:
+  - mac: 00:00:00:00:00:01
+    pin: 0000
+    name: sem1
+    updateInterval: PT10s
+  - mac: 00:00:00:00:00:02
+    pin: 1234
+    name: sem 2
+    updateInterval: PT15m
