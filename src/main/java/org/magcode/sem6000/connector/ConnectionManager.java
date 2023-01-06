@@ -32,7 +32,8 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 		try {
 			this.manager = DeviceManager.createInstance(false);
 			this.manager.scanForBluetoothDevices(10 * 1000);
-			manager.registerPropertyHandler(this);
+			this.manager.registerPropertyHandler(this);
+			//manager.registerSignalHandler(new MySignalHandler());
 		} catch (DBusException e) {
 			logger.error("DBusException.", e);
 		}
@@ -74,7 +75,7 @@ public class ConnectionManager extends AbstractPropertiesChangedHandler {
 			while (it.hasNext()) {
 				String id = it.next();
 				Connector connector = sems.get(id);
-				if (props.getPath().equals(connector.getNotifyCharPath())) {
+				if (connector !=null && props.getPath().equals(connector.getNotifyCharPath())) {
 					Map<String, Variant<?>> data = props.getPropertiesChanged();
 					if (data.containsKey("Value")) {
 						Variant<?> payload = data.get("Value");
