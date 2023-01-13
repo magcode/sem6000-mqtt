@@ -2,6 +2,7 @@ package com.github.sem2mqtt.configuration;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
 import java.util.Optional;
 
 public class MqttConfig {
@@ -51,5 +52,9 @@ public class MqttConfig {
 
   public String getPassword() {
     return password;
+  }
+
+  public boolean hasCredentials() {
+    return Objects.nonNull(username) || Objects.nonNull(password);
   }
 }

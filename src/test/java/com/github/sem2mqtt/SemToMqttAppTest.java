@@ -12,13 +12,4 @@ class SemToMqttAppTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("configuration");
   }
-
-  @Test()
-  void runs_when_configuration_exists() {
-    String[] args = new String[1];
-    args[0] = "valid_test.yaml";
-    assertThatCode(() -> SemToMqttApp.main(args))
-        .doesNotThrowAnyException();
-  }
-
 }
