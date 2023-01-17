@@ -1,16 +1,16 @@
 package org.magcode.sem6000.connector;
 
 import java.nio.ByteBuffer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.magcode.sem6000.connector.receive.ResponseType;
 import org.magcode.sem6000.connector.receive.SemResponse;
 import org.magcode.sem6000.connector.receive.SemResponseParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Receiver {
-	private static Logger logger = LogManager.getLogger(Receiver.class);
-	private String id;
+
+  private static final Logger logger = LoggerFactory.getLogger(Receiver.class);
+  private String id;
 	private byte[] incompleteBuffer;
 	private NotificationConsumer notificationReceiver;
 

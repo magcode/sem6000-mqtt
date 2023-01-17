@@ -1,8 +1,6 @@
 package com.github.sem2mqtt.mqtt;
 
 import com.github.sem2mqtt.configuration.MqttConfig;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -10,10 +8,12 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttSecurityException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MqttConnection implements MqttCallback {
 
-  private static final Logger LOGGER = LogManager.getLogger(MqttConnection.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MqttConnection.class);
 
   private final MqttClient mqttClient;
   private final MqttConfig mqttConfig;

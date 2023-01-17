@@ -1,5 +1,9 @@
 package org.magcode.sem6000.connector;
 
+import com.github.hypfvieh.bluetooth.DeviceManager;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothDevice;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -7,9 +11,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.magcode.sem6000.connector.receive.AvailabilityResponse;
 import org.magcode.sem6000.connector.send.Command;
@@ -17,14 +18,12 @@ import org.magcode.sem6000.connector.send.DataDayCommand;
 import org.magcode.sem6000.connector.send.LoginCommand;
 import org.magcode.sem6000.connector.send.MeasureCommand;
 import org.magcode.sem6000.connector.send.SyncTimeCommand;
-
-import com.github.hypfvieh.bluetooth.DeviceManager;
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothDevice;
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Connector {
-	private static Logger logger = LogManager.getLogger(Connector.class);
+
+	private static final Logger logger = LoggerFactory.getLogger(Connector.class);
 	public static final String UUID_NOTIFY = "0000fff4-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_WRITE = "0000fff3-0000-1000-8000-00805f9b34fb";
 	public static final String UUID_SERVICE = "0000fff0-0000-1000-8000-00805f9b34fb";

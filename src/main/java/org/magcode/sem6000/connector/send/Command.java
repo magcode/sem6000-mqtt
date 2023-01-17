@@ -2,6 +2,7 @@ package org.magcode.sem6000.connector.send;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.magcode.sem6000.connector.ByteUtils;
 
 public abstract class Command {
 	private byte[] message;
@@ -80,14 +81,18 @@ public abstract class Command {
 		for (int i = 0; i < len; i += 2) {
 			data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
 		}
-		return data;
-	}
+    return data;
+  }
 
-	public long getSent() {
-		return sent;
-	}
+  public long getSent() {
+    return sent;
+  }
 
-	public void setSent(long sent) {
-		this.sent = sent;
-	}
+  public void setSent(long sent) {
+    this.sent = sent;
+  }
+
+  public String getReadableMessage() {
+    return ByteUtils.byteArrayToHex(this.message);
+  }
 }

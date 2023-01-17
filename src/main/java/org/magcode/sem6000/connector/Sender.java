@@ -1,19 +1,17 @@
 package org.magcode.sem6000.connector;
 
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
 import java.util.concurrent.BlockingQueue;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.magcode.sem6000.connector.send.Command;
-
-import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Sender implements Runnable {
 	private final BlockingQueue<Command> workQueue;
-	private BluetoothGattCharacteristic writeChar;
-	private static Logger logger = LogManager.getLogger(Sender.class);
-	private String id = "";
+  private BluetoothGattCharacteristic writeChar;
+  private static final Logger logger = LoggerFactory.getLogger(Sender.class);
+  private String id = "";
 
 	public Sender(BlockingQueue<Command> workQueue, BluetoothGattCharacteristic writeChar,
 			NotificationConsumer receiver, String id) {

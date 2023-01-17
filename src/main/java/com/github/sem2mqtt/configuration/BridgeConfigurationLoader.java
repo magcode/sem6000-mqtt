@@ -10,12 +10,12 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BridgeConfigurationLoader {
 
-  public static final Logger LOGGER = LogManager.getLogger(BridgeConfigurationLoader.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(BridgeConfigurationLoader.class);
   public static final String DEFAULT_PROPERTY_FILENAME = "sem6.properties";
   public static final String DEFAULT_YAML_FILENAME = "sem2mqtt_bridge.yaml";
 
@@ -40,7 +40,7 @@ public class BridgeConfigurationLoader {
   private void failIfFileDoesNotExist(File file) {
     if (!file.exists()) {
       throw new IllegalArgumentException(String.format(
-          "Configuration file '%s' does not exist.", file.getName()));
+          "Configuration file '%s' does not exist.", file.getAbsoluteFile()));
     }
   }
 
@@ -110,6 +110,6 @@ public class BridgeConfigurationLoader {
 
   private File getClassPathFileFor(String filePath) {
     URL resource = this.getClass().getClassLoader().getResource(filePath);
-    return Optional.ofNullable(resource).map(URL::getFile).map(File::new).orElse(new File(""));
+    return Optional.ofNullable(resource).map(URL::getFile).map(File::new).orElse(new File(filePath));
   }
 }

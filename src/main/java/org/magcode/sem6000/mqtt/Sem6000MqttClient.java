@@ -12,19 +12,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LifeCycle;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.magcode.sem6000.connector.ConnectionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Sem6000MqttClient {
-	private static Logger logger = LogManager.getLogger(Sem6000MqttClient.class);
+
+	private static final Logger logger = LoggerFactory.getLogger(Sem6000MqttClient.class);
 
 	public static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
@@ -58,7 +57,7 @@ public class Sem6000MqttClient {
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
 			public void run() {
-				Logger logger2 = LogManager.getLogger("shutdown");
+				Logger logger2 = LoggerFactory.getLogger("shutdown");
 				try {
 					conMan.shutDown();
 					for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
@@ -73,7 +72,6 @@ public class Sem6000MqttClient {
 					mqttClient.disconnect();
 					logger2.info("Disconnected from MQTT server");
 					logger2.info("Stopped.");
-					((LifeCycle) LogManager.getContext()).stop();
 				} catch (MqttException e) {
 					logger2.error("Error during shutdown", e);
 				}
@@ -156,7 +154,7 @@ public class Sem6000MqttClient {
 				}
 			}
 		} catch (IOException ex) {
-			logger.fatal("Could not read properties", ex);
+			logger.error("Could not read properties", ex);
 			System.exit(1);
 		} finally {
 			if (input != null) {

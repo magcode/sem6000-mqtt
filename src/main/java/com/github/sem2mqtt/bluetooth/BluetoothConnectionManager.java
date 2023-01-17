@@ -1,20 +1,40 @@
 package com.github.sem2mqtt.bluetooth;
 
+import com.coreoz.wisp.Scheduler;
+import com.github.hypfvieh.bluetooth.DeviceManager;
+import com.github.hypfvieh.bluetooth.wrapper.BluetoothDevice;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
+import org.freedesktop.dbus.exceptions.DBusException;
 
 public class BluetoothConnectionManager {
-  private final Map<String, BluetoothConnection> macAddressToBluetoothConnections;
 
-  public BluetoothConnectionManager() {
+  private final Map<String, BluetoothConnection> macAddressToBluetoothConnections;
+  private final Scheduler scheduler;
+  private DeviceManager deviceManager;
+
+  public BluetoothConnectionManager(Scheduler scheduler) {
+    this.scheduler = scheduler;
     macAddressToBluetoothConnections = new ConcurrentHashMap<>();
   }
 
+  public void init() {
+
+    try {
+      deviceManager = DeviceManager.createInstance(false);
+    } catch (DBusException e) {
+      throw new RuntimeException("Failed to initialize bluetooth device manager", e);
+    }
+    deviceManager.scanForBluetoothDevices(10 * 1000);
+  }
+
   public <T extends BluetoothConnection> T setupConnection(T bluetoothConnection) {
-    bluetoothConnection.setConnectionManager(this);
     macAddressToBluetoothConnections.put(bluetoothConnection.getMacAddress(), bluetoothConnection);
     return bluetoothConnection;
+  }
+
+  public <T extends Exception> BluetoothDevice findDeviceOrFail(String macAddress, T e) throws T {
+    return deviceManager.getDevices().stream()
+        .filter(bluetoothDevice -> bluetoothDevice.getAddress().equals(macAddress)).findFirst().orElseThrow(() -> e);
   }
 }

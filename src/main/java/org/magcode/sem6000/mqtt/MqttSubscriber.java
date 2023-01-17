@@ -1,18 +1,19 @@
 package org.magcode.sem6000.mqtt;
 
-import org.apache.logging.log4j.LogManager;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.apache.logging.log4j.Logger;
 import org.magcode.sem6000.connector.ConnectionManager;
 import org.magcode.sem6000.connector.send.LedCommand;
 import org.magcode.sem6000.connector.send.MeasureCommand;
 import org.magcode.sem6000.connector.send.SwitchCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MqttSubscriber implements MqttCallback {
-	private static Logger logger = LogManager.getLogger(MqttSubscriber.class);
-	private ConnectionManager manager;
+
+  private static final Logger logger = LoggerFactory.getLogger(MqttSubscriber.class);
+  private ConnectionManager manager;
 	private String rootTopic;
 
 	public MqttSubscriber(String rootTopic) {

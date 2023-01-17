@@ -1,20 +1,23 @@
 package com.github.sem2mqtt;
 
+import com.coreoz.wisp.Scheduler;
+import com.coreoz.wisp.SchedulerConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.github.sem2mqtt.bluetooth.BluetoothConnectionManager;
 import com.github.sem2mqtt.configuration.BridgeConfiguration;
 import com.github.sem2mqtt.configuration.BridgeConfigurationLoader;
 import com.github.sem2mqtt.configuration.MqttConfig;
 import com.github.sem2mqtt.mqtt.MqttConnection;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SemToMqttApp {
 
-  public static final Logger LOGGER = LogManager.getLogger(SemToMqttApp.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SemToMqttApp.class);
 
   public static void main(String[] args) {
     LOGGER.info("Starting SEM6000 to MQTT bridge.");
@@ -27,8 +30,10 @@ public class SemToMqttApp {
     } catch (MqttException e) {
       throw new RuntimeException("Failed to set up mqtt client: ", e);
     }
-    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConnection,
-        mqttConfig.getRootTopic(), bridgeConfiguration.getSemConfigs());
+    Scheduler scheduler = new Scheduler(SchedulerConfig.builder().maxThreads(4).build());
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConfig.getRootTopic(),
+        bridgeConfiguration.getSemConfigs(), mqttConnection,
+        new BluetoothConnectionManager(scheduler), scheduler);
 
     semToMqttBridge.run();
   }

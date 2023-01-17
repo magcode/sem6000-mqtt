@@ -1,23 +1,22 @@
 package org.magcode.sem6000.connector;
 
+import com.github.hypfvieh.bluetooth.DeviceManager;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler;
 import org.freedesktop.dbus.interfaces.Properties.PropertiesChanged;
 import org.freedesktop.dbus.types.Variant;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.mqtt.Sem6000Config;
-
-import com.github.hypfvieh.bluetooth.DeviceManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConnectionManager extends AbstractPropertiesChangedHandler {
-	private static Logger logger = LogManager.getLogger(ConnectionManager.class);
-	private DeviceManager manager;
+
+  private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
+  private DeviceManager manager;
 	private Map<String, Connector> sems = new HashMap<String, Connector>();
 	private Map<String, Receiver> gattDataReceivers = new HashMap<String, Receiver>();
 	private NotificationConsumer receiver;

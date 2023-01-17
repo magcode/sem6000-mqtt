@@ -1,7 +1,5 @@
 package org.magcode.sem6000.mqtt;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -11,10 +9,13 @@ import org.magcode.sem6000.connector.receive.AvailabilityResponse;
 import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MqttPublisher implements NotificationConsumer {
-	private static Logger logger = LogManager.getLogger(MqttPublisher.class);
-	private static boolean retained = false;
+
+  private static final Logger logger = LoggerFactory.getLogger(MqttPublisher.class);
+  private static boolean retained = false;
 	private static int qos = 0;
 	private MqttClient mqttClient;
 	private String topic;

@@ -2,14 +2,13 @@ package org.magcode.sem6000.connector.receive;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DataDayResponse extends SemResponse {
 	private int en24h;
-	private int enToday;
-	private static Logger logger = LogManager.getLogger(DataDayResponse.class);
+  private int enToday;
+  private static final Logger logger = LoggerFactory.getLogger(DataDayResponse.class);
 
 	public DataDayResponse(byte[] values, String id) {
 		this.responseType = ResponseType.dataday;

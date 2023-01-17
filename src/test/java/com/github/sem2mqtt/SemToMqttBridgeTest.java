@@ -1,94 +1,95 @@
 package com.github.sem2mqtt;
 
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
+import static com.github.sem2mqtt.configuration.Sem6000ConfigHelper.generateSemConfigs;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.coreoz.wisp.Scheduler;
+import com.github.sem2mqtt.bluetooth.BluetoothConnectionManager;
+import com.github.sem2mqtt.bluetooth.sem6000.Sem6000Connection;
 import com.github.sem2mqtt.configuration.Sem6000Config;
 import com.github.sem2mqtt.mqtt.MqttConnection;
 import com.github.sem2mqtt.mqtt.MqttConnection.MessageCallback;
-import java.time.Duration;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class SemToMqttBridgeTest {
 
   public static final String ROOT_TOPIC = "rootTopic";
-  private MqttConnection mqttConnection;
+  public Scheduler schedulerMock = new Scheduler();
+  private MqttConnection mqttConnectionMock;
+  private BluetoothConnectionManager bluetoothConnectionManager;
+  private Sem6000Connection defaultSem6000ConnectionMock;
 
   @BeforeEach
   void setUp() {
-    mqttConnection = mock(MqttConnection.class);
-  }
+    mqttConnectionMock = mock(MqttConnection.class);
+    bluetoothConnectionManager = mock(BluetoothConnectionManager.class);
 
-
-  private Sem6000Config randomSemConfigForPlug(String plugName) {
-    return new Sem6000Config(randomMac(), randomPin(), plugName, Duration.ofSeconds(60));
+    defaultSem6000ConnectionMock = mock(Sem6000Connection.class);
+    when(bluetoothConnectionManager.setupConnection(any())).thenReturn(defaultSem6000ConnectionMock);
   }
 
   @Test
   void establishes_mqtt_connection_when_running() {
     //given
-    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConnection, ROOT_TOPIC,
-        generateBridgeConfigForNSem6000(1));
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(ROOT_TOPIC, generateSemConfigs(1),
+        mqttConnectionMock, bluetoothConnectionManager, schedulerMock);
     //when
     semToMqttBridge.run();
     //then
-    verify(mqttConnection).establish();
+    verify(mqttConnectionMock).establish();
   }
 
   @Test
-  void subscribes_to_setter_of_each_sem6000_when_running() {
+  void subscribes_to_mqtt_setter_of_each_sem6000_when_running() {
     //given
-    Set<Sem6000Config> sem6000Configs = generateBridgeConfigForNSem6000(4);
-    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConnection, ROOT_TOPIC,
-        sem6000Configs);
+    Set<Sem6000Config> sem6000Configs = generateSemConfigs(4);
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(ROOT_TOPIC, sem6000Configs, mqttConnectionMock,
+        bluetoothConnectionManager, schedulerMock);
     //when
     semToMqttBridge.run();
     //then
     for (Sem6000Config sem6000Config : sem6000Configs) {
-      verify(mqttConnection).subscribe(
+      verify(mqttConnectionMock).subscribe(
           matches(String.format("^%s\\/%s\\/\\+\\/set$", ROOT_TOPIC, sem6000Config.getName())),
           any(MessageCallback.class));
     }
   }
 
   @Test
+  void establishes_a_bluetooth_connection_to_each_sem6000_when_running() {
+    //given
+    int countOfSem6000 = 4;
+    Set<Sem6000Config> sem6000Configs = generateSemConfigs(countOfSem6000);
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(ROOT_TOPIC, sem6000Configs, mqttConnectionMock,
+        bluetoothConnectionManager, schedulerMock);
+    //when
+    semToMqttBridge.run();
+    //then
+    for (Sem6000Config sem6000Config : sem6000Configs) {
+      verify(bluetoothConnectionManager).setupConnection(
+          argThat(bluetoothConnection -> bluetoothConnection.getMacAddress().equals(sem6000Config.getMac())));
+    }
+    verify(defaultSem6000ConnectionMock, times(countOfSem6000)).establish();
+  }
+
+  @Test
   void fails_on_mqtt_problems_when_running() {
     //given
-    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConnection, ROOT_TOPIC,
-        generateBridgeConfigForNSem6000(1));
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(ROOT_TOPIC, generateSemConfigs(1),
+        mqttConnectionMock, bluetoothConnectionManager, schedulerMock);
     //when
-    doThrow(new RuntimeException()).when(mqttConnection).establish();
+    doThrow(new RuntimeException()).when(mqttConnectionMock).establish();
     //then
     assertThatCode(semToMqttBridge::run).isInstanceOf(RuntimeException.class);
-  }
-
-  private Set<Sem6000Config> generateBridgeConfigForNSem6000(int countOfSems) {
-    return
-        IntStream.range(0, countOfSems)
-            .mapToObj(num -> randomSemConfigForPlug("plug" + num))
-            .collect(toSet());
-  }
-
-  private String randomPin() {
-    return String.valueOf(ThreadLocalRandom.current().nextInt(100000));
-  }
-
-  private String randomMac() {
-    return ThreadLocalRandom.current().ints()
-        .limit(6)
-        .map(num -> num % 100)
-        .map(Math::abs)
-        .mapToObj(String::valueOf)
-        .collect(joining(":"));
   }
 }
