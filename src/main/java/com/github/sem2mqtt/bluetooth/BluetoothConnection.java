@@ -4,18 +4,13 @@ import com.coreoz.wisp.Scheduler;
 
 public abstract class BluetoothConnection {
 
-  private BluetoothConnectionManager bluetoothConnectionManager;
+  protected BluetoothConnectionManager connectionManager;
   protected Scheduler scheduler;
 
   public abstract String getMacAddress();
 
   public BluetoothConnection(BluetoothConnectionManager bluetoothConnectionManager, Scheduler scheduler) {
-    this.bluetoothConnectionManager = bluetoothConnectionManager;
+    this.connectionManager = bluetoothConnectionManager;
     this.scheduler = scheduler;
-  }
-
-
-  public BluetoothConnectionManager getConnectionManager() {
-    return bluetoothConnectionManager;
   }
 }

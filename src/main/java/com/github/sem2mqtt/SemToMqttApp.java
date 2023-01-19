@@ -24,16 +24,16 @@ public class SemToMqttApp {
     BridgeConfiguration bridgeConfiguration = loadBridgeConfiguration(args);
     MqttConnection mqttConnection;
     MqttConfig mqttConfig = bridgeConfiguration.getMqttConfig();
+    MqttClient mqttClient;
     try {
-      mqttConnection = new MqttConnection(
-          new MqttClient(mqttConfig.getUrl(), mqttConfig.getClientId(), new MemoryPersistence()), mqttConfig);
+      mqttClient = new MqttClient(mqttConfig.getUrl(), mqttConfig.getClientId(), new MemoryPersistence());
+      mqttConnection = new MqttConnection(mqttClient, mqttConfig);
     } catch (MqttException e) {
       throw new RuntimeException("Failed to set up mqtt client: ", e);
     }
     Scheduler scheduler = new Scheduler(SchedulerConfig.builder().maxThreads(4).build());
     SemToMqttBridge semToMqttBridge = new SemToMqttBridge(mqttConfig.getRootTopic(),
-        bridgeConfiguration.getSemConfigs(), mqttConnection,
-        new BluetoothConnectionManager(scheduler), scheduler);
+        bridgeConfiguration.getSemConfigs(), mqttConnection, new BluetoothConnectionManager(), scheduler);
 
     semToMqttBridge.run();
   }

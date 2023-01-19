@@ -11,15 +11,21 @@ import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattCharacteristic;
 import com.github.hypfvieh.bluetooth.wrapper.BluetoothGattService;
 import com.github.sem2mqtt.bluetooth.BluetoothConnection;
 import com.github.sem2mqtt.bluetooth.BluetoothConnectionManager;
+import com.github.sem2mqtt.bluetooth.sem6000.Sem6000DbusHandlerProxy.Sem6000ResponseHandler;
 import com.github.sem2mqtt.configuration.Sem6000Config;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import org.bluez.exceptions.BluezFailedException;
 import org.bluez.exceptions.BluezInProgressException;
 import org.bluez.exceptions.BluezInvalidValueLengthException;
 import org.bluez.exceptions.BluezNotAuthorizedException;
 import org.bluez.exceptions.BluezNotPermittedException;
 import org.bluez.exceptions.BluezNotSupportedException;
+import org.magcode.sem6000.connector.receive.AvailabilityResponse;
+import org.magcode.sem6000.connector.receive.AvailabilityResponse.Availability;
+import org.magcode.sem6000.connector.receive.SemResponse;
 import org.magcode.sem6000.connector.send.Command;
 import org.magcode.sem6000.connector.send.DataDayCommand;
 import org.magcode.sem6000.connector.send.LoginCommand;
@@ -30,24 +36,22 @@ import org.slf4j.LoggerFactory;
 
 public class Sem6000Connection extends BluetoothConnection {
 
-  private static final Duration RECONNECT_DELAY = Duration.ofSeconds(60);
-
   private static final Logger LOGGER = LoggerFactory.getLogger(Sem6000Connection.class);
+  private static final Duration RECONNECT_DELAY = Duration.ofSeconds(60);
   private final Sem6000Config sem6000Config;
-  private final BluetoothConnectionManager connectionManager;
   private BluetoothDevice device;
-  private String notifyDbusPath;
   private BluetoothGattCharacteristic writeService;
+  private BluetoothGattCharacteristic notifyService;
   /* Name of schedule if reconnection is scheduled, null otherwise. */
   private String reconnectScheduleName;
   /* Name of schedule for measurements if connected, null otherwise. */
   private String measurementSchedulerName;
+  private final Set<Sem6000ResponseHandler> subscribers = new CopyOnWriteArraySet<>();
 
   public Sem6000Connection(Sem6000Config sem6000Config, BluetoothConnectionManager connectionManager,
       Scheduler scheduler) {
     super(connectionManager, scheduler);
     this.sem6000Config = sem6000Config;
-    this.connectionManager = connectionManager;
   }
 
 
@@ -63,6 +67,10 @@ public class Sem6000Connection extends BluetoothConnection {
     } catch (ConnectException e) {
       LOGGER.warn("Device {} is not connected properly. Scheduling reconnect. ", this.sem6000Config.getName());
       scheduleReconnect();
+    } catch (RuntimeException e) {
+      LOGGER.warn("General exception, device {} is not connected properly. Scheduling reconnect. ",
+          this.sem6000Config.getName());
+      scheduleReconnect();
     }
   }
 
@@ -72,33 +80,40 @@ public class Sem6000Connection extends BluetoothConnection {
       throw new ConnectException("Could not connect to device.");
     }
 
-    BluetoothGattCharacteristic notifyService = loadGattCharacteristics();
+    loadGattCharacteristicsAndSubscribeChanges();
 
     try {
-      notifyService.startNotify();
-      this.notifyDbusPath = notifyService.getDbusPath();
-
       this.safeSend(new LoginCommand(this.sem6000Config.getPin()));
       // add some delay so that device can handle login properly
       Thread.sleep(200);
       this.safeSend(new SyncTimeCommand());
       handleConnected();
-    } catch (SendingException | BluezFailedException | BluezInProgressException | BluezNotSupportedException |
-             BluezNotPermittedException | InterruptedException e) {
+    } catch (SendingException | InterruptedException e) {
       LOGGER.debug("Could not connect device with error: ", e);
       throw new ConnectException(e);
     }
   }
 
-  private BluetoothGattCharacteristic loadGattCharacteristics() {
+  private void loadGattCharacteristicsAndSubscribeChanges() throws ConnectException {
     BluetoothGattService gattService = device.getGattServiceByUuid(Sem6000GattCharacteristic.Service.uuid);
     writeService = gattService.getGattCharacteristicByUuid(Sem6000GattCharacteristic.Write.uuid);
-    return gattService.getGattCharacteristicByUuid(Sem6000GattCharacteristic.Notify.uuid);
+    notifyService = gattService.getGattCharacteristicByUuid(
+        Sem6000GattCharacteristic.Notify.uuid);
+    try {
+      notifyService.startNotify();
+      connectionManager.subscribeToDbusPath(notifyService.getDbusPath(),
+          new Sem6000DbusHandlerProxy(this::handleResponse));
+    } catch (BluezFailedException | BluezInProgressException | BluezNotSupportedException |
+             BluezNotPermittedException e) {
+      LOGGER.debug("Could not connect device, because starting notify failed: ", e);
+      throw new ConnectException(e);
+    }
   }
 
   protected void handleConnected() {
     LOGGER.info("Successfully connected to device {} ('{}')", sem6000Config.getName(), sem6000Config.getMac());
     reconnectScheduleName = null;
+    subscribers.forEach(handler -> handler.handleSem6000Response(new AvailabilityResponse(Availability.available)));
     measurementSchedulerName = scheduler.schedule(this::requestMeasurements,
         Schedules.fixedDelaySchedule(this.sem6000Config.getUpdateInterval())).name();
   }
@@ -108,15 +123,25 @@ public class Sem6000Connection extends BluetoothConnection {
       safeSend(new MeasureCommand());
       safeSend(new DataDayCommand());
     } catch (SendingException e) {
-      LOGGER.warn("Could not retrieve measurements from device {}: {}", sem6000Config.getName(), e.getMessage());
-      LOGGER.debug("Measurement retrieval errored with: ", e);
+      LOGGER.warn("Could not request measurement from device {}: {}", sem6000Config.getName(), e.getMessage());
+      LOGGER.debug("Requesting measurement errored with: ", e);
     }
   }
 
-  protected void handleDisconnected() {
+  private void handleResponse(SemResponse semResponse) {
+    subscribers.forEach(handler -> handler.handleSem6000Response(semResponse));
+    subscribers.forEach(handler -> handler.handleSem6000Response(new AvailabilityResponse(Availability.available)));
+  }
+
+  private void handleDisconnected() {
     LOGGER.info("Lost connection to device {} ('{}')", sem6000Config.getName(), sem6000Config.getMac());
     scheduler.cancel(measurementSchedulerName);
     measurementSchedulerName = null;
+    subscribers.forEach(handler -> handler.handleSem6000Response(new AvailabilityResponse(Availability.lost)));
+    connectionManager.ignoreDbusPath(notifyService.getDbusPath());
+    device = null;
+    writeService = null;
+    notifyService = null;
     scheduleReconnect();
   }
 
@@ -132,7 +157,7 @@ public class Sem6000Connection extends BluetoothConnection {
     }
   }
 
-  protected synchronized void safeSend(Command command) throws SendingException {
+  private synchronized void safeSend(Command command) throws SendingException {
     ensureConnectionIsEstablishedOrThrow(new SendingException(
         String.format("Failed to send message because device %s is not connected.", this.sem6000Config.getName())));
     LOGGER.debug("Sending command to {} ('{}')", this.sem6000Config.getName(), command.getReadableMessage());
@@ -145,23 +170,28 @@ public class Sem6000Connection extends BluetoothConnection {
     }
   }
 
-  protected <T extends Throwable> void ensureConnectionIsEstablishedOrThrow(T exception) throws T {
-    if (!isConnected()) {
+  private <T extends Throwable> void ensureConnectionIsEstablishedOrThrow(T exception) throws T {
+    if (!isEstablished()) {
       handleDisconnected();
+      throw exception;
     }
   }
 
-  public boolean isConnected() {
-    return Objects.nonNull(this.device) && Objects.nonNull(this.writeService) && Objects.nonNull(this.notifyDbusPath)
+  public boolean isEstablished() {
+    return Objects.nonNull(this.device) && Objects.nonNull(this.writeService) && Objects.nonNull(this.notifyService)
         && this.device.isConnected();
   }
 
-  protected void scheduleReconnect() {
+  private void scheduleReconnect() {
     if (Objects.isNull(reconnectScheduleName)) {
       LOGGER.debug("Scheduling reconnect for device {}.", sem6000Config.getName());
       reconnectScheduleName = scheduler.schedule(() -> reconnect(0),
               executeOnce(fixedDelaySchedule(RECONNECT_DELAY)))
           .name();
     }
+  }
+
+  public void subscribe(Sem6000ResponseHandler responseHandler) {
+    subscribers.add(responseHandler);
   }
 }

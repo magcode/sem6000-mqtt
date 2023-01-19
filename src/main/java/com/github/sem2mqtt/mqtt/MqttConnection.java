@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 public class MqttConnection implements MqttCallback {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MqttConnection.class);
+  private static final boolean DEFAULT_RETAINED = false;
+  private static final int DEFAULT_QOS = 0;
 
   private final MqttClient mqttClient;
   private final MqttConfig mqttConfig;
@@ -72,6 +74,15 @@ public class MqttConnection implements MqttCallback {
       LOGGER.info("Subscribed to topic '{}'", topic);
     } catch (MqttException e) {
       throw new RuntimeException(String.format("Failed to subscribe to mqtt topic %s: ", topic), e);
+    }
+  }
+
+  public void publish(String topic, Object payload) {
+    String stringPayload = String.valueOf(payload);
+    try {
+      this.mqttClient.publish(topic, stringPayload.getBytes(), DEFAULT_QOS, DEFAULT_RETAINED);
+    } catch (MqttException e) {
+      LOGGER.error("Failed to bridge to mqtt, ", e);
     }
   }
 

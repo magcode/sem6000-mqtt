@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
-public class Sem6000ConfigHelper {
+public class Sem6000ConfigTestHelper {
 
   public static Set<Sem6000Config> generateSemConfigs(int countOfSems) {
     return
@@ -18,7 +18,11 @@ public class Sem6000ConfigHelper {
   }
 
   public static Sem6000Config randomSemConfigForPlug(String plugName) {
-    return new Sem6000Config(randomMac(), randomPin(), plugName, Duration.ofSeconds(60));
+    return randomSemConfigForPlug(plugName, Duration.ofSeconds(60));
+  }
+
+  public static Sem6000Config randomSemConfigForPlug(String plugName, Duration updateInterval) {
+    return new Sem6000Config(randomMac(), randomPin(), plugName, updateInterval);
   }
 
   static String randomPin() {

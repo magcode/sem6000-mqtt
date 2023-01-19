@@ -4,7 +4,7 @@ public class IncompleteResponse extends SemResponse {
 	private byte[] data;
 
 	public IncompleteResponse(byte[] message) {
-		this.responseType = ResponseType.incomplete;
+		super(ResponseType.incomplete);
 		this.data = message;
 	}
 

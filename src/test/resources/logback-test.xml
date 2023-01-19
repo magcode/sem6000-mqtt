@@ -7,6 +7,7 @@
   </appender>
 
   <logger name="com.github.sem2mqtt" level="DEBUG"/>
+  <logger name="org.magcode.sem6000" level="DEBUG"/>
   <root level="ERROR">
     <appender-ref ref="CONSOLE"/>
   </root>
