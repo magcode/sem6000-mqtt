@@ -10,6 +10,7 @@ import static org.magcode.sem6000.connector.receive.SemResponseTestHelper.create
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.matches;
+import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -21,11 +22,16 @@ import com.coreoz.wisp.Scheduler;
 import com.github.sem2mqtt.bluetooth.BluetoothConnectionManager;
 import com.github.sem2mqtt.bluetooth.sem6000.Sem6000Connection;
 import com.github.sem2mqtt.bluetooth.sem6000.Sem6000DbusHandlerProxy.Sem6000ResponseHandler;
+import com.github.sem2mqtt.bluetooth.sem6000.SendingException;
 import com.github.sem2mqtt.configuration.Sem6000Config;
 import com.github.sem2mqtt.mqtt.MqttConnection;
 import com.github.sem2mqtt.mqtt.MqttConnection.MessageCallback;
+import com.github.sem2mqtt.mqtt.Sem6000MqttTopic;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +40,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.magcode.sem6000.connector.receive.AvailabilityResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connector.send.Command;
+import org.magcode.sem6000.connector.send.LedCommand;
+import org.magcode.sem6000.connector.send.SwitchCommand;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -85,6 +94,32 @@ class SemToMqttBridgeTest {
           matches(String.format("^%s\\/%s\\/\\+\\/set$", ROOT_TOPIC, sem6000Config.getName())),
           any(MessageCallback.class));
     }
+  }
+
+  @ParameterizedTest
+  @MethodSource("mqttMessages")
+  void forwards_mqtt_messages_to_sem6000_device_when_running(String message, String type, Command expectedCommand)
+      throws SendingException {
+    //given
+    String plugName = "plug1";
+    Sem6000Config plug = randomSemConfigForPlug(plugName);
+    SemToMqttBridge semToMqttBridge = new SemToMqttBridge(ROOT_TOPIC, Collections.singleton(plug),
+        mqttConnectionMock, bluetoothConnectionManager, schedulerMock);
+    semToMqttBridge.run();
+    //when
+    Sem6000Connection sem6000ConnectionMock = mock(Sem6000Connection.class);
+    semToMqttBridge.handleMqttMessage(
+        new Sem6000MqttTopic(ROOT_TOPIC, String.format("%s/%s/%s", ROOT_TOPIC, plugName, type), plugName),
+        new MqttMessage(message.getBytes(StandardCharsets.UTF_8)), plug, sem6000ConnectionMock);
+    //then
+    verify(sem6000ConnectionMock).safeSend(refEq(expectedCommand));
+  }
+
+  static Stream<Arguments> mqttMessages() {
+    return Stream.of(Arguments.of("true", "led", new LedCommand(true)),
+        Arguments.of("false", "led", new LedCommand(false)),
+        Arguments.of("true", "relay", new SwitchCommand(true)),
+        Arguments.of("false", "relay", new SwitchCommand(false)));
   }
 
   @Test

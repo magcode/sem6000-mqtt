@@ -157,7 +157,7 @@ public class Sem6000Connection extends BluetoothConnection {
     }
   }
 
-  private synchronized void safeSend(Command command) throws SendingException {
+  public synchronized void safeSend(Command command) throws SendingException {
     ensureConnectionIsEstablishedOrThrow(new SendingException(
         String.format("Failed to send message because device %s is not connected.", this.sem6000Config.getName())));
     LOGGER.debug("Sending command to {} ('{}')", this.sem6000Config.getName(), command.getReadableMessage());

@@ -2,10 +2,13 @@ package org.magcode.sem6000.connector.send;
 
 public class LedCommand extends Command {
 
-	public LedCommand(boolean on) {
+	private final boolean state;
+
+	public LedCommand(boolean state) {
+		this.state = state;
 		byte[] payload = new byte[6];
 		payload[0] = (byte) 0x05;
-		if (on) {
+		if (state) {
 			payload[1] = (byte) 0x01;
 		} else {
 			payload[1] = (byte) 0x00;
@@ -19,4 +22,8 @@ public class LedCommand extends Command {
 		setMessage(message);
 	}
 
+	@Override
+	public String toString() {
+		return String.format("led %s", state ? "on" : "off");
+	}
 }

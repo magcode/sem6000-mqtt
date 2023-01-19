@@ -6,9 +6,11 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import com.coreoz.wisp.Scheduler;
 import com.github.sem2mqtt.bluetooth.BluetoothConnectionManager;
 import com.github.sem2mqtt.bluetooth.sem6000.Sem6000Connection;
+import com.github.sem2mqtt.bluetooth.sem6000.SendingException;
 import com.github.sem2mqtt.configuration.Sem6000Config;
 import com.github.sem2mqtt.mqtt.MqttConnection;
 import com.github.sem2mqtt.mqtt.MqttConnection.MessageCallback;
+import com.github.sem2mqtt.mqtt.Sem6000MqttTopic;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.Set;
@@ -18,6 +20,9 @@ import org.magcode.sem6000.connector.receive.AvailabilityResponse.Availability;
 import org.magcode.sem6000.connector.receive.DataDayResponse;
 import org.magcode.sem6000.connector.receive.MeasurementResponse;
 import org.magcode.sem6000.connector.receive.SemResponse;
+import org.magcode.sem6000.connector.send.LedCommand;
+import org.magcode.sem6000.connector.send.MeasureCommand;
+import org.magcode.sem6000.connector.send.SwitchCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,26 +51,62 @@ public class SemToMqttBridge {
     LOGGER.info("Starting bridge service.");
     mqttConnection.establish();
     bluetoothConnectionManager.init();
-    sem6000Configs.stream().peek(this::subscribeToSem6000MqttTopics).forEach(sem6000Config -> {
+    sem6000Configs.forEach(sem6000Config -> {
       Sem6000Connection sem6000Connection = bluetoothConnectionManager.setupConnection(
           new Sem6000Connection(sem6000Config, bluetoothConnectionManager, scheduler));
       sem6000Connection.establish();
       sem6000Connection.subscribe(semResponse -> this.handleSem6000Response(semResponse, sem6000Config));
+      subscribeToSem6000MqttTopics(sem6000Config, sem6000Connection);
     });
   }
 
 
-  void subscribeToSem6000MqttTopics(Sem6000Config sem6000Config) {
-    mqttConnection.subscribe(String.format("%s/%s/+/set", rootTopic, sem6000Config.getName()),
-        createMessageCallbackFor(sem6000Config));
+  void subscribeToSem6000MqttTopics(Sem6000Config sem6000Config, Sem6000Connection sem6000Connection) {
+    mqttConnection.subscribe(Sem6000MqttTopic.createSetterSubscription(rootTopic, sem6000Config.getName()),
+        createMessageCallbackFor(sem6000Config, sem6000Connection));
   }
 
-  private MessageCallback createMessageCallbackFor(Sem6000Config sem6000Config) {
-    return (String topic, MqttMessage message) -> handleMqttMessage(topic, message, sem6000Config);
+  private MessageCallback createMessageCallbackFor(Sem6000Config sem6000Config, Sem6000Connection sem6000Connection) {
+    return (String topic, MqttMessage message) -> handleMqttMessage(
+        new Sem6000MqttTopic(rootTopic, topic, sem6000Config.getName()), message, sem6000Config, sem6000Connection);
   }
 
-  void handleMqttMessage(String topic, MqttMessage message, Sem6000Config sem6000Config) {
-
+  void handleMqttMessage(Sem6000MqttTopic topic, MqttMessage message, Sem6000Config sem6000Config,
+      Sem6000Connection sem6000Connection) {
+    LOGGER.debug("Received mqtt message '{}' to topic {} for device {}", message, topic, sem6000Config.getName());
+    if (topic.isValid()) {
+      switch (topic.getType()) {
+        case relay:
+          boolean plugOnOff = Boolean.parseBoolean(message.toString());
+          try {
+            sem6000Connection.safeSend(new SwitchCommand(plugOnOff));
+            // request measurement as switching probably influences the plugs consumption
+            sem6000Connection.safeSend(new MeasureCommand());
+            LOGGER.info("Received 'switch device {} {}'", sem6000Config.getName(), plugOnOff ? "on" : "off");
+          } catch (SendingException e) {
+            LOGGER.error("Failed to forward mqtt message '{}' to topic {} for {}", message, topic,
+                sem6000Config.getName());
+          }
+          break;
+        case led:
+          boolean ledOnOff = Boolean.parseBoolean(message.toString());
+          try {
+            sem6000Connection.safeSend(new LedCommand(ledOnOff));
+            LOGGER.info("Received 'switch device {} {}'", sem6000Config.getName(), ledOnOff ? "on" : "off");
+          } catch (SendingException e) {
+            LOGGER.error("Failed to forward mqtt message '{}' to topic {} for {}", message, topic,
+                sem6000Config.getName());
+          }
+          break;
+        default:
+          LOGGER.warn("Ignoring mqtt message '{}' to topic '{}' for device '{}' and unknown type {}", topic,
+              message, sem6000Config.getName(), topic.getType());
+          break;
+      }
+    } else {
+      LOGGER.warn("Could not process mqtt message '{}' to topic '{}' for device '{}'", topic,
+          message, sem6000Config.getName());
+    }
   }
 
   private synchronized void handleSem6000Response(SemResponse response, Sem6000Config sem6000Config) {

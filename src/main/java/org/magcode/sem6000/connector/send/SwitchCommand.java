@@ -2,18 +2,21 @@ package org.magcode.sem6000.connector.send;
 
 public class SwitchCommand extends Command {
 
-	public SwitchCommand(boolean on) {
-		byte[] payload = new byte[3];
-		if (on) {
-			payload[0] = (byte) 0x01;
-		} else {
-			payload[0] = (byte) 0x00;
-		}
-		payload[1] = (byte) 0x00;
-		payload[2] = (byte) 0x00;
+  private final boolean state;
 
-		byte[] message = buildMessage("0300", payload);
-		setMessage(message);
-	}
+  public SwitchCommand(boolean state) {
+    this.state = state;
+    byte[] payload = new byte[3];
+    if (state) {
+      payload[0] = (byte) 0x01;
+    }
 
+    byte[] message = buildMessage("0300", payload);
+    setMessage(message);
+  }
+
+  @Override
+  public String toString() {
+    return String.format("led %s", state ? "on" : "off");
+  }
 }
