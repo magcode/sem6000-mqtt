@@ -58,7 +58,6 @@ class MqttPublisher implements NotificationConsumer {
 		default:
 			break;
 		}
-		logger.debug(response.toString());
 	}
 
 	protected void publish(String topic, String payload) {

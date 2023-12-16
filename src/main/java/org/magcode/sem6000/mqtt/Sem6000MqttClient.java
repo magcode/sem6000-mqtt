@@ -88,22 +88,9 @@ public class Sem6000MqttClient {
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
-		mqttSubscriber = new MqttSubscriber(rootTopic);
+		mqttSubscriber = new MqttSubscriber(mqttClient, rootTopic, sems);
 		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect(connOpt);
-		logger.info("Connected to MQTT broker.");
-		try {
-			// give some time before subscribing
-			Thread.sleep(200);
-		} catch (InterruptedException e) {
-			//
-		}
-		for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
-			Sem6000Config value = entry.getValue();
-			String subTopic = rootTopic + "/" + value.getName() + "/+/set";
-			mqttClient.subscribe(subTopic);
-			logger.info("Subscribed to {}", subTopic);
-		}
 	}
 
 	private static void readProps() {
