@@ -28,6 +28,8 @@ public class Sem6000MqttClient {
 	private static MqttClient mqttClient;
 	private static String rootTopic = "home/sem";
 	private static String mqttServer = "tcp://broker";
+	private static String username = "";
+	private static char[] password;
 	private static int consecutiveReconnectLimit = 100;
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
@@ -88,6 +90,11 @@ public class Sem6000MqttClient {
 		connOpt.setCleanSession(true);
 		connOpt.setMaxInflight(MAX_INFLIGHT);
 		connOpt.setAutomaticReconnect(true);
+		if (username != null && !username.isEmpty() && password != null && password.length > 0) {
+			connOpt.setUserName(username);
+			connOpt.setPassword(password);
+			java.util.Arrays.fill(password, '\0');
+		}
 		mqttSubscriber = new MqttSubscriber(mqttClient, rootTopic, sems);
 		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect(connOpt);
@@ -108,6 +115,8 @@ public class Sem6000MqttClient {
 
 			rootTopic = props.getProperty("rootTopic", "home");
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
+			username = props.getProperty("username", null);
+			password = props.getProperty("password", null).toCharArray();
 			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
 			Enumeration<?> e = props.propertyNames();
 			while (e.hasMoreElements()) {
