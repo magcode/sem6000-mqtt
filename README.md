@@ -25,13 +25,17 @@ For the missing features: Create pull requests.
 You need a `sem6.properties` file where you can configure multiple SEM6000 devices.
 
 ```
-rootTopic=home/mysemdevices       # the mqtt root topic
-mqttServer=tcp://192.168.0.1      # IP or hostname of your mqtt broker
+rootTopic=home/mysemdevices             # the mqtt root topic
+mqttServer=tcp://192.168.0.1            # IP or hostname of your mqtt broker
+username=mqttuser                       # username for mqtt broker (optional, leave empty if not needed)
+password=mqttpassword                   # password for mqtt broker (optional, leave empty if not needed)
+mqttDiscovery=true                      # set to false if you don't want to use mqtt discovery
+homeassistantRootTopic=homeassistant    # the root topic for homeassistant discovery messages
 
-sem1.mac=00:00:00:00:00:01        # the mac of your sem6000 device
-sem1.pin=0000                     # the PIN of your sem6000 device
-sem1.name=sem1                    # the name of your sem6000 device, use [a-z0-9]
-sem1.refresh=60                   # the schedule to send MQTT status information, seconds. Do not go below 30.
+sem1.mac=00:00:00:00:00:01              # the mac of your sem6000 device
+sem1.pin=0000                           # the PIN of your sem6000 device
+sem1.name=sem1                          # the name of your sem6000 device, use [a-z0-9]
+sem1.refresh=60                         # the schedule to send MQTT status information, seconds. Do not go below 30.
 
 sem2.mac=00:00:00:00:00:02
 sem2.pin=0000
@@ -51,6 +55,9 @@ It can simply be run with
 `java -jar sem6000-mqtt-1.0.0-jar-with-dependencies.jar`
 
 Don't forget to put the `sem6.properties` right beside the jar file.
+
+## MQTT Discovery
+If you set `mqttDiscovery=true` in the properties file, the tool will expose the SEM6000 devices to Home Assistant via MQTT discovery. The devices will be automatically discovered and added to Home Assistant.
 
 
 # Control sockets

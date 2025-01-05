@@ -30,6 +30,8 @@ public class Sem6000MqttClient {
 	private static String mqttServer = "tcp://broker";
 	private static String username = "";
 	private static char[] password;
+	private static boolean mqttDiscovery = true;
+	private static String homeassistantRootTopic = "homeassistant";
 	private static int consecutiveReconnectLimit = 100;
 	private static final int MAX_INFLIGHT = 200;
 	private static Map<String, Sem6000Config> sems;
@@ -98,6 +100,7 @@ public class Sem6000MqttClient {
 		mqttSubscriber = new MqttSubscriber(mqttClient, rootTopic, sems);
 		mqttClient.setCallback(mqttSubscriber);
 		mqttClient.connect(connOpt);
+		publishDiscoveryMessages();
 	}
 
 	private static void readProps() {
@@ -117,6 +120,8 @@ public class Sem6000MqttClient {
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
 			username = props.getProperty("username", null);
 			password = props.getProperty("password", null).toCharArray();
+			mqttDiscovery = Boolean.valueOf(props.getProperty("mqttDiscovery", "true"));
+			homeassistantRootTopic = props.getProperty("homeassistantRootTopic", "homeassistant");
 			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
 			Enumeration<?> e = props.propertyNames();
 			while (e.hasMoreElements()) {
@@ -142,6 +147,27 @@ public class Sem6000MqttClient {
 				} catch (IOException e) {
 					logger.error("Failed to close file", e);
 				}
+			}
+		}
+	}
+
+	private static void publishDiscoveryMessages() {
+		if (!mqttDiscovery) {
+			logger.info("Skipping discovery messages");
+			return;
+		}
+		for (Entry<String, Sem6000Config> entry : sems.entrySet()) {
+			Sem6000Config config = entry.getValue();
+			String mac_no_colon = config.getMac().replace(":", "_");
+			String discoveryTopic = String.format("%s/device/%s/config", homeassistantRootTopic, mac_no_colon);
+			String discoveryMessage = config.getDiscoveryMessage(rootTopic);
+			MqttMessage message = new MqttMessage(discoveryMessage.getBytes());
+			message.setRetained(true);
+			try {
+				mqttClient.publish(discoveryTopic, message);
+				logger.info("Published discovery message for {} to {}", config.getName(), discoveryTopic);
+			} catch (MqttException e) {
+				logger.error("Failed to publish discovery message for {}", config.getName(), e);
 			}
 		}
 	}
