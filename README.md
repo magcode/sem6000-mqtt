@@ -83,3 +83,49 @@ The tool will publish the following messages every 60 seconds (as configured in 
 
 # Stability and reconnects
 A BLE connection is not stable sometimes. The tool will attempt to reconnect to the socket after five minutes in case the connection gets lost. It will stop reconnecting after reaching 100 consecutive unsuccessful reconnects.
+
+# Raspberry PI
+
+Install the required packages:
+
+```
+sudo apt install default-jdk
+```
+
+## Systemd service
+
+You can create a systemd service to run the tool as a service. Create a file `/etc/systemd/system/sem6000-mqtt.service` with the following content:
+
+```
+[Unit]
+Description=sem6000-mqtt
+After=network.target
+
+[Service]
+ExecStart=/path/to/java -jar /path/to/sem6000-mqtt-1.0.0-jar-with-dependencies.jar
+WorkingDirectory=/path/to
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Replace `/path/to/java`, `/path/to/sem6000-mqtt-1.0.0-jar-with-dependencies.jar` and `/path/to` with the correct paths.
+
+You will find the java path by running: `which java` and the path to the jar file by running: `pwd` in the directory where the jar file is located.
+
+Then run the following commands to reload the systemd configuration:
+
+```
+sudo systemctl daemon-reload
+```
+
+Then run the following commands to enable and start the service:
+
+```
+sudo systemctl enable sem6000-mqtt
+sudo systemctl start sem6000-mqtt
+```
