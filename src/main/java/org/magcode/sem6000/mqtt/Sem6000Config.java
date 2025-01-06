@@ -84,6 +84,7 @@ public class Sem6000Config {
 		cmpVoltage.put("state_topic", rootTopic + "/" + name + "/voltage");
 		cmpVoltage.put("unit_of_measurement", "V");
 		cmpVoltage.put("p", "sensor");
+		cmpVoltage.put("device_class", "voltage");
 		cmps.put("voltage", cmpVoltage);
 		JSONObject cmpPower = new JSONObject();
 		cmpPower.put("name", "power");
@@ -91,7 +92,18 @@ public class Sem6000Config {
 		cmpPower.put("state_topic", rootTopic + "/" + name + "/power");
 		cmpPower.put("unit_of_measurement", "W");
 		cmpPower.put("p", "sensor");
+		cmpPower.put("device_class", "power");
+		cmpPower.put("state_class", "measurement");
 		cmps.put("power", cmpPower);
+		JSONObject cmpConsumption = new JSONObject();
+		cmpConsumption.put("name", "consumption");
+		cmpConsumption.put("unique_id", "consumption_"+name + "_" + mac_no_colon);
+		cmpConsumption.put("state_topic", rootTopic + "/" + name + "/energytoday");
+		cmpConsumption.put("unit_of_measurement", "Wh");
+		cmpConsumption.put("p", "sensor");
+		cmpConsumption.put("device_class", "energy");
+		cmpConsumption.put("state_class", "total_increasing");
+		cmps.put("consumption", cmpConsumption);
 		JSONObject origin = new JSONObject();
 		origin.put("name", "sem6000-mqtt");
 		origin.put("sw", "1.0.3");
