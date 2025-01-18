@@ -30,7 +30,7 @@ public class Sem6000MqttClient {
 	private static String mqttServer = "tcp://broker";
 	private static String username = "";
 	private static char[] password;
-	private static boolean mqttDiscovery = true;
+	private static boolean mqttDiscovery = false;
 	private static String homeassistantRootTopic = "homeassistant";
 	private static int consecutiveReconnectLimit = 100;
 	private static final int MAX_INFLIGHT = 200;
@@ -119,8 +119,11 @@ public class Sem6000MqttClient {
 			rootTopic = props.getProperty("rootTopic", "home");
 			mqttServer = props.getProperty("mqttServer", "tcp://localhost");
 			username = props.getProperty("username", null);
-			password = props.getProperty("password", null).toCharArray();
-			mqttDiscovery = Boolean.valueOf(props.getProperty("mqttDiscovery", "true"));
+			String passwordString = props.getProperty("password", null);
+			if (passwordString != null && passwordString.length() > 0) {
+				password = passwordString.toCharArray();
+			}
+			mqttDiscovery = Boolean.valueOf(props.getProperty("mqttDiscovery", "false"));
 			homeassistantRootTopic = props.getProperty("homeassistantRootTopic", "homeassistant");
 			consecutiveReconnectLimit = Integer.valueOf(props.getProperty("maxReconnects", "100"));
 			Enumeration<?> e = props.propertyNames();
